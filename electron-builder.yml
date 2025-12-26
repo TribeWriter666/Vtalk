@@ -1,0 +1,16 @@
+appId: com.vtalk.app
+productName: Vtalk
+directories:
+  output: dist
+  buildResources: build
+files:
+  - out/**/*
+win:
+  target:
+    - nsis
+mac:
+  target:
+    - dmg
+linux:
+  target:
+    - AppImage
