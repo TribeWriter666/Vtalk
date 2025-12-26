@@ -2,9 +2,12 @@
 
 Vtalk is a lightweight, cross-platform voice dictation application built with Electron, React, and OpenAI Whisper. It's designed to be a local alternative to apps like Flow, allowing you to dictate text anywhere on your system with a simple hotkey.
 
-**Built in under 2 hours using AI.**
+**Built in under 1.5 hours using AI.**
 
-## 🚀 Features
+## TLDR;
+To get this running in seconds: Just open this project in Cursor, then open the AI Chat (Ctrl+L) and say: "I just cloned this; please set up my environment, install all dependencies, and help me add my OpenAI key so I can run the app." The AI will handle all the terminal commands, folder setups, and configuration for you—no developer experience required.
+
+## Features
 
 - **Global Hotkey:** Press and hold `Ctrl + Win` (or `Ctrl + Ins`) to record instantly.
 - **Continuous Mode:** Press `Space` while holding the modifiers to keep recording even after releasing.
@@ -15,7 +18,7 @@ Vtalk is a lightweight, cross-platform voice dictation application built with El
 - **Modern UI:** Clean, dark-themed interface built with Tailwind CSS and Framer Motion.
 - **System Tray:** Runs quietly in the background for quick access.
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 - **Frontend:** React, Tailwind CSS, Framer Motion, Lucide React
 - **Backend:** Electron, Node.js
@@ -23,7 +26,7 @@ Vtalk is a lightweight, cross-platform voice dictation application built with El
 - **AI:** OpenAI Whisper API
 - **Build Tool:** Vite, electron-vite
 
-## 📋 How to Use
+## How to Use
 
 ### Prerequisites
 
@@ -73,5 +76,4 @@ Vtalk is a lightweight, cross-platform voice dictation application built with El
 
 ---
 
-*This project was developed as a portfolio piece to demonstrate rapid prototyping, AI integration, and local audio processing in Electron.*
-
+*This project was developed for my own daily use as I've grown sick of having so many subscriptions. $30 here, $20 there, all of a sudden you're forking out hundreds each month on software. as a developer trying to find your feet this quickly becomes too much and you soon have to start choosing what tool you'll have to go without this month. So I built this for myself but decided to opensource so others can save some cash too. Hopefully this inspires you to "just build it yourself"! It's also a portfolio piece to demonstrate rapid prototyping, AI integration, and local audio processing in Electron.*
