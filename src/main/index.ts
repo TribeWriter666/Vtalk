@@ -72,6 +72,19 @@ function createWindow(): void {
     // }
   })
 
+  // Handle renderer crashes
+  mainWindow.webContents.on('render-process-gone', (event, details) => {
+    console.error('Render process gone:', details)
+    if (details.reason !== 'clean-exit' && details.reason !== 'killed') {
+      console.log('Attempting to reload crashed renderer...')
+      mainWindow?.reload()
+    }
+  })
+
+  mainWindow.on('unresponsive', () => {
+    console.warn('Window is unresponsive. It might be frozen.')
+  })
+
   mainWindow.on('close', (event) => {
     if (!isQuitting) {
       event.preventDefault()
@@ -199,7 +212,14 @@ function startRecording() {
   if (isRecording) return
   isRecording = true
   console.log('Recording started...')
-  mainWindow?.webContents.send('recording-status', true)
+  
+  if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.webContents.isDestroyed()) {
+    try {
+      mainWindow.webContents.send('recording-status', true)
+    } catch (e) {
+      console.error('Failed to send recording-status:', e)
+    }
+  }
   
   // if (Notification.isSupported()) {
   //   new Notification({ title: 'Vtalk', body: 'Recording started...' }).show()
@@ -210,7 +230,14 @@ function stopRecording() {
   if (!isRecording) return
   isRecording = false
   console.log('Recording stopped...')
-  mainWindow?.webContents.send('recording-status', false)
+
+  if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.webContents.isDestroyed()) {
+    try {
+      mainWindow.webContents.send('recording-status', false)
+    } catch (e) {
+      console.error('Failed to send recording-status:', e)
+    }
+  }
 }
 
 ipcMain.handle('transcribe-audio', async (_, buffer: Buffer) => {
