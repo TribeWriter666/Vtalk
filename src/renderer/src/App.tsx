@@ -155,6 +155,24 @@ export default function App() {
     return Math.round(valid.reduce((acc, t) => acc + t.wpm, 0) / valid.length)
   }
 
+  const calculateTotalDuration = () => {
+    const totalSeconds = transcripts.reduce((acc, t) => acc + t.duration, 0)
+    if (totalSeconds < 60) return `${totalSeconds.toFixed(0)}s`
+    const mins = Math.floor(totalSeconds / 60)
+    const secs = Math.round(totalSeconds % 60)
+    return `${mins}m ${secs}s`
+  }
+
+  const formatDateTime = (dateStr: string) => {
+    const date = new Date(dateStr)
+    return date.toLocaleString(undefined, {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    })
+  }
+
   if (!window.api && !error) {
     return (
       <div className="h-screen flex items-center justify-center bg-slate-950 text-slate-400 p-10 text-center">
@@ -174,7 +192,7 @@ export default function App() {
         </div>
       )}
       {/* Header */}
-      <header className="flex items-center justify-between px-6 py-4 bg-slate-900/50 border-b border-slate-800">
+      <header className="flex items-center justify-between px-6 py-4 bg-slate-900/80 border-b border-slate-800 backdrop-blur-sm z-10">
         <div className="flex items-center gap-3">
           <div className={cn(
             "p-2 rounded-lg transition-colors",
@@ -183,45 +201,56 @@ export default function App() {
             {isRecording ? <Mic size={24} /> : <MicOff size={24} />}
           </div>
           <div>
-            <h1 className="text-xl font-bold">Vtalk</h1>
+            <h1 className="text-xl font-bold tracking-tight">Vtalk</h1>
             <p className="text-xs text-slate-400">
               {isRecording ? 'Recording... (Release Ctrl+Start to stop)' : 'Press Ctrl+Start to record'}
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-6">
-          <div className="flex gap-6">
-            <div className="text-right">
-              <div className="text-xs text-slate-400 flex items-center gap-1 justify-end">
-                <BarChart3 size={12} /> Avg. WPM
-              </div>
-              <div className="text-lg font-mono font-bold text-blue-400">
-                {calculateAverageWpm()}
-              </div>
-            </div>
-            <div className="text-right">
-              <div className="text-xs text-slate-400 flex items-center gap-1 justify-end">
-                <Type size={12} /> Total Words
-              </div>
-              <div className="text-lg font-mono font-bold text-emerald-400">
-                {transcripts.reduce((acc, t) => acc + (t.text.split(/\s+/).length || 0), 0)}
-              </div>
-            </div>
-          </div>
-          
-          <div className="w-px h-8 bg-slate-800" /> {/* Divider */}
-
-          <button 
-            onClick={openRecordingsFolder}
-            className="flex items-center gap-2 px-3 py-2 bg-slate-800/50 hover:bg-slate-800 border border-slate-700 rounded-lg text-slate-300 hover:text-white transition-all text-sm group"
-            title="Open Recordings Folder"
-          >
-            <Folder size={16} className="text-blue-400 group-hover:scale-110 transition-transform" />
-            <span>Recordings</span>
-          </button>
-        </div>
+        <button 
+          onClick={openRecordingsFolder}
+          className="flex items-center gap-2 px-3 py-2 bg-slate-800/50 hover:bg-slate-800 border border-slate-700 rounded-lg text-slate-300 hover:text-white transition-all text-sm group"
+          title="Open Recordings Folder"
+        >
+          <Folder size={16} className="text-blue-400 group-hover:scale-110 transition-transform" />
+          <span>Recordings</span>
+        </button>
       </header>
+
+      {/* Sub-header Stats Bar */}
+      <div className="flex items-center justify-around px-6 py-3 bg-slate-900/30 border-b border-slate-800/50">
+        <div className="flex flex-col items-center">
+          <div className="text-[10px] uppercase tracking-widest text-slate-500 flex items-center gap-1.5 mb-0.5">
+            <BarChart3 size={10} /> Avg. WPM
+          </div>
+          <div className="text-sm font-mono font-bold text-blue-400">
+            {calculateAverageWpm()}
+          </div>
+        </div>
+        
+        <div className="w-px h-6 bg-slate-800/50" />
+
+        <div className="flex flex-col items-center">
+          <div className="text-[10px] uppercase tracking-widest text-slate-500 flex items-center gap-1.5 mb-0.5">
+            <Type size={10} /> Total Words
+          </div>
+          <div className="text-sm font-mono font-bold text-emerald-400">
+            {transcripts.reduce((acc, t) => acc + (t.text.split(/\s+/).length || 0), 0)}
+          </div>
+        </div>
+
+        <div className="w-px h-6 bg-slate-800/50" />
+
+        <div className="flex flex-col items-center">
+          <div className="text-[10px] uppercase tracking-widest text-slate-500 flex items-center gap-1.5 mb-0.5">
+            <Clock size={10} /> Total Time
+          </div>
+          <div className="text-sm font-mono font-bold text-amber-400">
+            {calculateTotalDuration()}
+          </div>
+        </div>
+      </div>
 
       {/* Recording Overlay/Feedback */}
       <AnimatePresence>
@@ -275,12 +304,12 @@ export default function App() {
               <div className="flex justify-between items-start mb-2">
                 <div className="flex items-center gap-3 text-xs text-slate-500">
                   <span className="flex items-center gap-1">
-                    <Clock size={12} /> {new Date(transcript.created_at).toLocaleTimeString()}
+                    <Clock size={12} /> {formatDateTime(transcript.created_at)}
                   </span>
                   <span className="flex items-center gap-1">
                     <BarChart3 size={12} /> {Math.round(transcript.wpm)} WPM
                   </span>
-                  <span className="flex items-center gap-1">
+                  <span className="flex items-center gap-1 text-slate-600">
                     <Type size={12} /> {transcript.duration.toFixed(1)}s
                   </span>
                 </div>
