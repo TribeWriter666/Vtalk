@@ -5,7 +5,7 @@ import { optimizer, is } from '@electron-toolkit/utils'
 import fs from 'fs'
 import path from 'path'
 import { exec } from 'child_process'
-import { saveTranscript, getTranscripts, deleteTranscript, getSetting, setSetting } from './db'
+import { saveTranscript, getTranscripts, deleteTranscript, getSetting, setSetting, getStats, getAllTranscripts } from './db'
 
 // Use require for native modules to avoid bundling issues
 const GKL = require('node-global-key-listener')
@@ -220,7 +220,6 @@ app.whenReady().then(() => {
         return new Response(null, { status: 400 })
       }
 
-      const { getTranscripts } = require('./db')
       const transcripts = await getTranscripts(10000, 0) // Get all to find by ID
       const transcript = transcripts.find(t => t.id === id)
       
@@ -412,7 +411,6 @@ ipcMain.handle('get-transcripts', async (_, limit, offset) => {
 })
 
 ipcMain.handle('get-stats', async () => {
-  const { getStats } = require('./db')
   return getStats()
 })
 
@@ -445,7 +443,6 @@ ipcMain.on('open-recordings-folder', () => {
 
 ipcMain.handle('export-metadata', async () => {
   try {
-    const { getAllTranscripts } = require('./db')
     const transcripts = await getAllTranscripts()
     const recordingsDir = path.join(app.getPath('userData'), 'recordings')
     const csvPath = path.join(recordingsDir, 'metadata.csv')
