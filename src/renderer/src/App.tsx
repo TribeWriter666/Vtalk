@@ -135,10 +135,8 @@ export default function App() {
       audioRef.current.pause()
     }
 
-    // Properly encode the path for the atom protocol
-    // Ensure backslashes are forward slashes and the path is encoded
-    const normalizedPath = path.replace(/\\/g, '/')
-    const audio = new Audio(`atom://${normalizedPath}`)
+    // Use a clean URL format for the atom protocol
+    const audio = new Audio(`atom://me/${path.replace(/\\/g, '/')}`)
     audioRef.current = audio
     audio.play().catch(e => {
       console.error('Audio play failed:', e)
@@ -252,34 +250,34 @@ export default function App() {
       </header>
 
       {/* Sub-header Stats Bar */}
-      <div className="flex items-center justify-around px-6 py-3 bg-slate-900/30 border-b border-slate-800/50">
-        <div className="flex flex-col items-center">
-          <div className="text-[10px] uppercase tracking-widest text-slate-500 flex items-center gap-1.5 mb-0.5">
+      <div className="flex items-center justify-around px-6 py-3 bg-slate-900/40 border-b border-slate-800/60 shadow-inner">
+        <div className="flex flex-col items-center group cursor-default">
+          <div className="text-[10px] uppercase tracking-[0.2em] text-slate-500 flex items-center gap-1.5 mb-1 group-hover:text-blue-400 transition-colors">
             <BarChart3 size={10} /> Avg. WPM
           </div>
-          <div className="text-sm font-mono font-bold text-blue-400">
+          <div className="text-base font-mono font-bold text-blue-400/90 tabular-nums">
             {calculateAverageWpm()}
           </div>
         </div>
         
-        <div className="w-px h-6 bg-slate-800/50" />
+        <div className="w-px h-8 bg-slate-800/60" />
 
-        <div className="flex flex-col items-center">
-          <div className="text-[10px] uppercase tracking-widest text-slate-500 flex items-center gap-1.5 mb-0.5">
+        <div className="flex flex-col items-center group cursor-default">
+          <div className="text-[10px] uppercase tracking-[0.2em] text-slate-500 flex items-center gap-1.5 mb-1 group-hover:text-emerald-400 transition-colors">
             <Type size={10} /> Total Words
           </div>
-          <div className="text-sm font-mono font-bold text-emerald-400">
-            {transcripts.reduce((acc, t) => acc + (t.text.split(/\s+/).length || 0), 0)}
+          <div className="text-base font-mono font-bold text-emerald-400/90 tabular-nums">
+            {transcripts.reduce((acc, t) => acc + (t.text.trim() ? t.text.trim().split(/\s+/).length : 0), 0)}
           </div>
         </div>
 
-        <div className="w-px h-6 bg-slate-800/50" />
+        <div className="w-px h-8 bg-slate-800/60" />
 
-        <div className="flex flex-col items-center">
-          <div className="text-[10px] uppercase tracking-widest text-slate-500 flex items-center gap-1.5 mb-0.5">
+        <div className="flex flex-col items-center group cursor-default">
+          <div className="text-[10px] uppercase tracking-[0.2em] text-slate-500 flex items-center gap-1.5 mb-1 group-hover:text-amber-400 transition-colors">
             <Clock size={10} /> Total Time
           </div>
-          <div className="text-sm font-mono font-bold text-amber-400">
+          <div className="text-base font-mono font-bold text-amber-400/90 tabular-nums">
             {calculateTotalDuration()}
           </div>
         </div>
