@@ -1,5 +1,6 @@
 import { app, shell, BrowserWindow, ipcMain, clipboard, Tray, Menu, nativeImage, Notification, protocol, net } from 'electron'
 import { join } from 'path'
+import { pathToFileURL } from 'url'
 import { optimizer, is } from '@electron-toolkit/utils'
 import fs from 'fs'
 import path from 'path'
@@ -16,6 +17,20 @@ const ffmpegPath = require('ffmpeg-static')
 
 // Set ffmpeg path
 ffmpeg.setFfmpegPath(ffmpegPath)
+
+// Register atom protocol as privileged to allow streaming/seeking
+protocol.registerSchemesAsPrivileged([
+  { 
+    scheme: 'atom', 
+    privileges: { 
+      standard: true, 
+      secure: true, 
+      supportFetchAPI: true, 
+      stream: true,
+      bypassCSP: true 
+    } 
+  }
+])
 
 // Fix for GPU/Cache errors on Windows
 app.commandLine.appendSwitch('disable-gpu-cache')
@@ -144,17 +159,21 @@ app.whenReady().then(() => {
   // Register protocol to serve local audio files safely
   protocol.handle('atom', (request) => {
     try {
-      const urlString = request.url.replace('atom://me/', '')
-      const decodedPath = decodeURIComponent(urlString)
-      const fileUrl = 'file:///' + decodedPath.replace(/\\/g, '/')
+      // The URL will be in the format atom://me/C:/path/to/file
+      const url = new URL(request.url)
+      let decodedPath = decodeURIComponent(url.pathname)
       
-      // CRITICAL: We must pass the original request headers (like Range) 
-      // to net.fetch so that Electron can handle seeking for larger audio files.
+      // On Windows, pathname starts with /C:/..., strip the leading slash
+      if (process.platform === 'win32' && decodedPath.startsWith('/')) {
+        decodedPath = decodedPath.slice(1)
+      }
+      
+      const fileUrl = pathToFileURL(decodedPath).toString()
+      
       return net.fetch(fileUrl, {
-        bypassCustomProtocolHandlers: true, // Prevent infinite loops
         method: request.method,
         headers: request.headers,
-        // @ts-ignore body can be null
+        // @ts-ignore
         body: request.body,
         duplex: 'half'
       })

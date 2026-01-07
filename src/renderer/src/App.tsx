@@ -137,8 +137,14 @@ export default function App() {
     }
 
     // Use a clean URL format for the atom protocol
-    const audio = new Audio(`atom://me/${path.replace(/\\/g, '/')}`)
+    // On Windows, Audio(atom://me/C:/...) is handled by our protocol handler
+    const normalizedPath = path.replace(/\\/g, '/')
+    const audio = new Audio(`atom://me/${normalizedPath}`)
     audioRef.current = audio
+    audio.onerror = (e) => {
+      console.error('Audio error details:', audio.error)
+      setPlayingId(null)
+    }
     audio.play().catch(e => {
       console.error('Audio play failed:', e)
       setPlayingId(null)
