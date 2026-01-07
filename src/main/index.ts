@@ -1,4 +1,4 @@
-import { app, shell, BrowserWindow, ipcMain, clipboard, Tray, Menu, nativeImage, Notification } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, clipboard, Tray, Menu, nativeImage, Notification, protocol, net } from 'electron'
 import { join } from 'path'
 import { optimizer, is } from '@electron-toolkit/utils'
 import fs from 'fs'
@@ -136,6 +136,12 @@ app.whenReady().then(() => {
   createWindow()
   createTray()
 
+  // Register protocol to serve local audio files safely
+  protocol.handle('atom', (request) => {
+    const filePath = request.url.slice('atom://'.length)
+    return net.fetch('file:///' + decodeURI(filePath))
+  })
+
   app.on('activate', function () {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })
@@ -250,8 +256,22 @@ ipcMain.handle('transcribe-audio', async (_, buffer: Buffer) => {
       model: 'whisper-1'
     })
 
+    // Create recordings directory if it doesn't exist
+    const recordingsDir = path.join(app.getPath('userData'), 'recordings')
+    if (!fs.existsSync(recordingsDir)) {
+      fs.mkdirSync(recordingsDir, { recursive: true })
+    }
+
+    // Save permanent copy of audio
+    const timestamp = Date.now()
+    const permanentFile = path.join(recordingsDir, `recording_${timestamp}.webm`)
+    fs.copyFileSync(tempFile, permanentFile)
+
+    // In a real app, you'd use ffmpeg here to convert to .wav if needed
+    // For now we keep the .webm copy
+    
     fs.unlinkSync(tempFile)
-    return response.text
+    return { text: response.text, audioPath: permanentFile }
   } catch (error) {
     console.error('Transcription error:', error)
     if (Notification.isSupported()) {
@@ -261,8 +281,8 @@ ipcMain.handle('transcribe-audio', async (_, buffer: Buffer) => {
   }
 })
 
-ipcMain.handle('save-transcript', async (_, { text, duration }) => {
-  return saveTranscript(text, duration)
+ipcMain.handle('save-transcript', async (_, { text, duration, audioPath }) => {
+  return saveTranscript(text, duration, audioPath)
 })
 
 ipcMain.handle('get-transcripts', async () => {
@@ -275,6 +295,14 @@ ipcMain.handle('delete-transcript', async (_, id) => {
 
 ipcMain.handle('check-openai-key', async () => {
   return !!process.env.OPENAI_API_KEY
+})
+
+ipcMain.on('open-recordings-folder', () => {
+  const recordingsDir = path.join(app.getPath('userData'), 'recordings')
+  if (!fs.existsSync(recordingsDir)) {
+    fs.mkdirSync(recordingsDir, { recursive: true })
+  }
+  shell.openPath(recordingsDir)
 })
 
 ipcMain.on('paste-text', async (_, text: string) => {

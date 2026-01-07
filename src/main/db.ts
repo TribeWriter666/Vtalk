@@ -11,18 +11,26 @@ db.exec(`
     text TEXT NOT NULL,
     duration INTEGER, -- in seconds
     wpm REAL,
+    audio_path TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )
 `)
 
-export function saveTranscript(text: string, duration: number) {
+// Handle migration for existing databases missing audio_path
+try {
+  db.exec('ALTER TABLE transcripts ADD COLUMN audio_path TEXT')
+} catch (e) {
+  // Column already exists or other error
+}
+
+export function saveTranscript(text: string, duration: number, audioPath?: string) {
   const words = text.trim().split(/\s+/).length
   const minutes = duration / 60
   const wpm = minutes > 0 ? words / minutes : 0
   
-  const stmt = db.prepare('INSERT INTO transcripts (text, duration, wpm) VALUES (?, ?, ?)')
-  const info = stmt.run(text, duration, wpm)
-  return { id: info.lastInsertRowid, text, duration, wpm, created_at: new Date().toISOString() }
+  const stmt = db.prepare('INSERT INTO transcripts (text, duration, wpm, audio_path) VALUES (?, ?, ?, ?)')
+  const info = stmt.run(text, duration, wpm, audioPath)
+  return { id: info.lastInsertRowid, text, duration, wpm, audio_path: audioPath, created_at: new Date().toISOString() }
 }
 
 export function getTranscripts() {

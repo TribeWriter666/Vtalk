@@ -12,7 +12,8 @@ const api = {
   saveTranscript: (transcript) => ipcRenderer.invoke('save-transcript', transcript),
   getTranscripts: () => ipcRenderer.invoke('get-transcripts'),
   deleteTranscript: (id) => ipcRenderer.invoke('delete-transcript', id),
-  checkOpenAIKey: () => ipcRenderer.invoke('check-openai-key')
+  checkOpenAIKey: () => ipcRenderer.invoke('check-openai-key'),
+  openRecordingsFolder: () => ipcRenderer.send('open-recordings-folder')
 }
 
 // Directly expose without the toolkit helper to be 100% sure

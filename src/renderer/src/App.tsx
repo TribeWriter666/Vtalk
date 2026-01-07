@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRecorder } from './hooks/useRecorder'
-import { Mic, MicOff, Copy, Trash2, RotateCcw, BarChart3, Clock, Type, Check } from 'lucide-react'
+import { Mic, MicOff, Copy, Trash2, RotateCcw, BarChart3, Clock, Type, Check, Play, Pause, Folder } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
@@ -14,6 +14,7 @@ interface Transcript {
   text: string
   duration: number
   wpm: number
+  audio_path?: string
   created_at: string
   status?: 'transcribing' | 'error' | 'success'
 }
@@ -25,6 +26,8 @@ export default function App() {
   const [lastAudio, setLastAudio] = useState<{ buffer: ArrayBuffer, duration: number } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [copiedId, setCopiedId] = useState<number | null>(null)
+  const [playingId, setPlayingId] = useState<number | null>(null)
+  const audioRef = useRef<HTMLAudioElement | null>(null)
 
   useEffect(() => {
     // @ts-ignore
@@ -76,11 +79,12 @@ export default function App() {
 
     try {
       // @ts-ignore
-      const text = await window.api.transcribeAudio(buffer)
+      const result = await window.api.transcribeAudio(buffer)
+      const { text, audioPath } = typeof result === 'string' ? { text: result, audioPath: null } : result
       
       // Save to DB
       // @ts-ignore
-      const saved = await window.api.saveTranscript({ text, duration })
+      const saved = await window.api.saveTranscript({ text, duration, audioPath })
       
       // Update the placeholder with real data
       setTranscripts(prev => [
@@ -117,6 +121,29 @@ export default function App() {
     navigator.clipboard.writeText(text)
     setCopiedId(id)
     setTimeout(() => setCopiedId(null), 2000)
+  }
+
+  const playAudio = (path: string, id: number) => {
+    if (playingId === id) {
+      audioRef.current?.pause()
+      setPlayingId(null)
+      return
+    }
+
+    if (audioRef.current) {
+      audioRef.current.pause()
+    }
+
+    const audio = new Audio(`atom://${path}`)
+    audioRef.current = audio
+    audio.play()
+    setPlayingId(id)
+    audio.onended = () => setPlayingId(null)
+  }
+
+  const openRecordingsFolder = () => {
+    // @ts-ignore
+    window.api.openRecordingsFolder()
   }
 
   const calculateAverageWpm = () => {
@@ -178,6 +205,14 @@ export default function App() {
               {transcripts.reduce((acc, t) => acc + (t.text.split(/\s+/).length || 0), 0)}
             </div>
           </div>
+          <button 
+            onClick={openRecordingsFolder}
+            className="p-2 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition-colors flex items-center gap-2 text-sm"
+            title="Open Recordings Folder"
+          >
+            <Folder size={18} />
+            Recordings
+          </button>
         </div>
       </header>
 
@@ -243,6 +278,15 @@ export default function App() {
                   </span>
                 </div>
                 <div className="flex items-center gap-1">
+                  {transcript.audio_path && (
+                    <button 
+                      onClick={() => playAudio(transcript.audio_path!, transcript.id)}
+                      className="p-1.5 hover:bg-slate-800 rounded-md text-slate-400 hover:text-blue-400 transition-colors"
+                      title={playingId === transcript.id ? "Pause" : "Play Recording"}
+                    >
+                      {playingId === transcript.id ? <Pause size={16} /> : <Play size={16} />}
+                    </button>
+                  )}
                   {transcript.status === 'error' && (
                     <button 
                       onClick={retryTranscription}
