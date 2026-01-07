@@ -37,7 +37,7 @@ export default function App() {
   const [showSettings, setShowSettings] = useState(false)
   const [showSetup, setShowSetup] = useState(false)
   const [apiKey, setApiKey] = useState('')
-  const [saveAudio, setSaveAudio] = useState(true)
+  const [saveAudio, setSaveAudio] = useState(false)
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const loadMoreRef = useRef<HTMLDivElement | null>(null)
 
@@ -64,7 +64,7 @@ export default function App() {
       // @ts-ignore
       const savedSaveAudio = await window.api.getSetting('save_audio')
       if (savedSaveAudio !== null) {
-        setSaveAudio(savedSaveAudio !== 'false')
+        setSaveAudio(savedSaveAudio === 'true')
       }
     }
 

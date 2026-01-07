@@ -373,7 +373,7 @@ ipcMain.handle('transcribe-audio', async (_, buffer: Buffer) => {
       model: 'whisper-1'
     })
 
-    const shouldSaveAudio = getSetting('save_audio') !== 'false'
+    const shouldSaveAudio = getSetting('save_audio') === 'true'
     let audioPath: string | null = null
 
     if (shouldSaveAudio) {
