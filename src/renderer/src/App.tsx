@@ -134,9 +134,11 @@ export default function App() {
       audioRef.current.pause()
     }
 
-    const audio = new Audio(`atom://${path}`)
+    // Properly encode the path for the atom protocol
+    const encodedPath = encodeURIComponent(path).replace(/%3A/g, ':').replace(/%5C/g, '/')
+    const audio = new Audio(`atom:///${encodedPath}`)
     audioRef.current = audio
-    audio.play()
+    audio.play().catch(e => console.error('Audio play failed:', e))
     setPlayingId(id)
     audio.onended = () => setPlayingId(null)
   }
@@ -188,30 +190,35 @@ export default function App() {
           </div>
         </div>
 
-        <div className="flex gap-6">
-          <div className="text-right">
-            <div className="text-xs text-slate-400 flex items-center gap-1 justify-end">
-              <BarChart3 size={12} /> Avg. WPM
+        <div className="flex items-center gap-6">
+          <div className="flex gap-6">
+            <div className="text-right">
+              <div className="text-xs text-slate-400 flex items-center gap-1 justify-end">
+                <BarChart3 size={12} /> Avg. WPM
+              </div>
+              <div className="text-lg font-mono font-bold text-blue-400">
+                {calculateAverageWpm()}
+              </div>
             </div>
-            <div className="text-lg font-mono font-bold text-blue-400">
-              {calculateAverageWpm()}
+            <div className="text-right">
+              <div className="text-xs text-slate-400 flex items-center gap-1 justify-end">
+                <Type size={12} /> Total Words
+              </div>
+              <div className="text-lg font-mono font-bold text-emerald-400">
+                {transcripts.reduce((acc, t) => acc + (t.text.split(/\s+/).length || 0), 0)}
+              </div>
             </div>
           </div>
-          <div className="text-right">
-            <div className="text-xs text-slate-400 flex items-center gap-1 justify-end">
-              <Type size={12} /> Total Words
-            </div>
-            <div className="text-lg font-mono font-bold text-emerald-400">
-              {transcripts.reduce((acc, t) => acc + (t.text.split(/\s+/).length || 0), 0)}
-            </div>
-          </div>
+          
+          <div className="w-px h-8 bg-slate-800" /> {/* Divider */}
+
           <button 
             onClick={openRecordingsFolder}
-            className="p-2 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition-colors flex items-center gap-2 text-sm"
+            className="flex items-center gap-2 px-3 py-2 bg-slate-800/50 hover:bg-slate-800 border border-slate-700 rounded-lg text-slate-300 hover:text-white transition-all text-sm group"
             title="Open Recordings Folder"
           >
-            <Folder size={18} />
-            Recordings
+            <Folder size={16} className="text-blue-400 group-hover:scale-110 transition-transform" />
+            <span>Recordings</span>
           </button>
         </div>
       </header>

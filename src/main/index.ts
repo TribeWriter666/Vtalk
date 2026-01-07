@@ -138,8 +138,11 @@ app.whenReady().then(() => {
 
   // Register protocol to serve local audio files safely
   protocol.handle('atom', (request) => {
-    const filePath = request.url.slice('atom://'.length)
-    return net.fetch('file:///' + decodeURI(filePath))
+    const url = new URL(request.url)
+    const filePath = decodeURIComponent(url.pathname.replace(/^\//, ''))
+    // For Windows, ensure path starts with drive letter correctly if it was stripped
+    const fullPath = filePath.includes(':') ? filePath : filePath.replace(/^([a-zA-Z])/, '$1:')
+    return net.fetch('file:///' + fullPath)
   })
 
   app.on('activate', function () {
