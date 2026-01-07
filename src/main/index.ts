@@ -511,9 +511,13 @@ ipcMain.on('paste-text', async (_, text: string) => {
 
   if (process.platform === 'win32') {
     const script = `
-      $wshell = New-Object -ComObject WScript.Shell;
-      Sleep -m 100;
-      $wshell.SendKeys('^v');
+      $def = '[DllImport("user32.dll")] public static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, uint dwExtraInfo);'
+      $type = Add-Type -MemberDefinition $def -Name "Win32Keyboard" -Namespace "Win32" -PassThru
+      Sleep -m 200
+      $type::keybd_event(0x11, 0, 0, 0)
+      $type::keybd_event(0x56, 0, 0, 0)
+      $type::keybd_event(0x56, 0, 2, 0)
+      $type::keybd_event(0x11, 0, 2, 0)
     `
     const tempScript = path.join(app.getPath('temp'), 'paste.ps1')
     fs.writeFileSync(tempScript, script)
