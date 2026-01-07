@@ -134,12 +134,6 @@ export default function App() {
     setLoadingMore(false)
   }
 
-  const loadTranscripts = async () => {
-    // @ts-ignore
-    const data = await window.api.getTranscripts(PAGE_SIZE, 0)
-    setTranscripts(data)
-  }
-
   const handleTranscription = async (buffer: ArrayBuffer, duration: number) => {
     setIsTranscribing(true)
     const tempId = Date.now()
@@ -177,8 +171,10 @@ export default function App() {
       // Auto-paste
       // @ts-ignore
       window.api.pasteText(text)
-    } catch (error) {
+    } catch (error: any) {
       console.error('Transcription failed:', error)
+      // @ts-ignore
+      window.api.hideOverlay()
       setTranscripts(prev => prev.map(t => 
         t.id === tempId ? { 
           ...t, 
@@ -213,7 +209,7 @@ export default function App() {
     setTimeout(() => setCopiedId(null), 2000)
   }
 
-  const playAudio = (path: string, id: number) => {
+  const playAudio = (_path: string, id: number) => {
     if (playingId === id) {
       audioRef.current?.pause()
       setPlayingId(null)
@@ -227,12 +223,12 @@ export default function App() {
     // Use the transcript ID to fetch the audio via the atom protocol
     const audio = new Audio(`atom://audio/${id}`)
     audioRef.current = audio
-    audio.onerror = (e) => {
+    audio.onerror = () => {
       console.error('Audio error details:', audio.error)
       setPlayingId(null)
     }
-    audio.play().catch(e => {
-      console.error('Audio play failed:', e)
+    audio.play().catch(_e => {
+      console.error('Audio play failed:', _e)
       setPlayingId(null)
     })
     setPlayingId(id)

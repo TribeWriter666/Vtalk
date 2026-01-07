@@ -25,8 +25,14 @@
         align-items: center;
         gap: 12px;
         box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.3);
-        transform: translateY(0);
-        transition: transform 0.2s ease-out;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+      .pill.processing {
+        border-color: rgba(168, 85, 247, 0.5);
+      }
+      .pill.done {
+        border-color: rgba(34, 197, 94, 0.5);
+        background: rgba(15, 23, 42, 0.95);
       }
       .dot {
         width: 8px;
@@ -35,11 +41,22 @@
         border-radius: 50%;
         animation: pulse 1.5s infinite;
       }
+      .dot.processing {
+        background: #a855f7;
+        animation: spin 1s infinite linear;
+        border-radius: 2px;
+      }
+      .dot.done {
+        background: #22c55e;
+        animation: none;
+        transform: scale(1.2);
+      }
       .text {
         color: #f8fafc;
         font-size: 13px;
         font-weight: 500;
         letter-spacing: 0.025em;
+        min-width: 110px;
       }
       .waves {
         display: flex;
@@ -52,6 +69,9 @@
         background: #3b82f6;
         border-radius: 1px;
       }
+      .processing .wave {
+        background: #a855f7;
+      }
       @keyframes pulse {
         0% { transform: scale(1); opacity: 1; }
         50% { transform: scale(1.2); opacity: 0.5; }
@@ -61,28 +81,55 @@
         0%, 100% { height: 4px; }
         50% { height: 12px; }
       }
+      @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+      }
     </style>
   </head>
   <body>
-    <div class="pill">
-      <div class="dot"></div>
-      <div class="text">Recording Voice...</div>
+    <div class="pill" id="pill">
+      <div class="dot" id="dot"></div>
+      <div class="text" id="status-text">Recording Voice...</div>
       <div class="waves" id="waves"></div>
     </div>
 
     <script>
+      const pill = document.getElementById('pill');
+      const dot = document.getElementById('dot');
+      const statusText = document.getElementById('status-text');
       const wavesContainer = document.getElementById('waves');
-      for (let i = 0; i < 5; i++) {
-        const wave = document.createElement('div');
-        wave.className = 'wave';
-        wave.style.animation = `wave-anim 0.6s infinite ease-in-out ${i * 0.1}s`;
-        wavesContainer.appendChild(wave);
+
+      function createWaves() {
+        wavesContainer.innerHTML = '';
+        for (let i = 0; i < 5; i++) {
+          const wave = document.createElement('div');
+          wave.className = 'wave';
+          wave.style.animation = `wave-anim 0.6s infinite ease-in-out ${i * 0.1}s`;
+          wavesContainer.appendChild(wave);
+        }
       }
 
-      // Listen for recording status if needed (though the main process handles show/hide)
+      createWaves();
+
       if (window.api) {
         window.api.onRecordingStatus((status) => {
-          // Additional logic could go here
+          if (status === 'recording' || status === true) {
+            pill.className = 'pill';
+            dot.className = 'dot';
+            statusText.innerText = 'Recording Voice...';
+            wavesContainer.style.display = 'flex';
+          } else if (status === 'processing') {
+            pill.className = 'pill processing';
+            dot.className = 'dot processing';
+            statusText.innerText = 'Processing AI...';
+            wavesContainer.style.display = 'flex';
+          } else if (status === 'done') {
+            pill.className = 'pill done';
+            dot.className = 'dot done';
+            statusText.innerText = 'Transcribed & Pasted!';
+            wavesContainer.style.display = 'none';
+          }
         });
       }
     </script>

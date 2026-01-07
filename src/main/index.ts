@@ -335,12 +335,8 @@ function startRecording() {
   if (overlayWindow && !overlayWindow.isDestroyed()) {
     overlayWindow.setAlwaysOnTop(true, 'screen-saver')
     overlayWindow.show()
-    overlayWindow.webContents.send('recording-status', true)
+    overlayWindow.webContents.send('recording-status', 'recording')
   }
-  
-  // if (Notification.isSupported()) {
-  //   new Notification({ title: 'Vtalk', body: 'Recording started...' }).show()
-  // }
 }
 
 function stopRecording() {
@@ -357,8 +353,7 @@ function stopRecording() {
   }
 
   if (overlayWindow && !overlayWindow.isDestroyed()) {
-    overlayWindow.hide()
-    overlayWindow.webContents.send('recording-status', false)
+    overlayWindow.webContents.send('recording-status', 'processing')
   }
 }
 
@@ -495,10 +490,25 @@ ipcMain.handle('export-metadata', async () => {
   }
 })
 
+ipcMain.on('hide-overlay', () => {
+  if (overlayWindow && !overlayWindow.isDestroyed()) {
+    overlayWindow.hide()
+  }
+})
+
 ipcMain.on('paste-text', async (_, text: string) => {
   const originalClipboard = clipboard.readText()
   clipboard.writeText(text)
   
+  if (overlayWindow && !overlayWindow.isDestroyed()) {
+    overlayWindow.webContents.send('recording-status', 'done')
+    setTimeout(() => {
+      if (overlayWindow && !overlayWindow.isDestroyed()) {
+        overlayWindow.hide()
+      }
+    }, 1500)
+  }
+
   if (process.platform === 'win32') {
     const script = `
       $wshell = New-Object -ComObject WScript.Shell;

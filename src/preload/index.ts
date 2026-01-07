@@ -19,7 +19,8 @@ const api = {
   openRecordingsFolder: () => ipcRenderer.send('open-recordings-folder'),
   exportMetadata: () => ipcRenderer.invoke('export-metadata'),
   getSetting: (key) => ipcRenderer.invoke('get-setting', key),
-  setSetting: (key, value) => ipcRenderer.invoke('set-setting', key, value)
+  setSetting: (key, value) => ipcRenderer.invoke('set-setting', key, value),
+  hideOverlay: () => ipcRenderer.send('hide-overlay')
 }
 
 // Directly expose without the toolkit helper to be 100% sure
