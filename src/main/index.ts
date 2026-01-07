@@ -146,11 +146,18 @@ app.whenReady().then(() => {
     try {
       const urlString = request.url.replace('atom://me/', '')
       const decodedPath = decodeURIComponent(urlString)
-      
-      // On Windows, if we have a path like C:/Users, we need file:///C:/Users
-      // net.fetch expects a proper file URL
       const fileUrl = 'file:///' + decodedPath.replace(/\\/g, '/')
-      return net.fetch(fileUrl)
+      
+      // CRITICAL: We must pass the original request headers (like Range) 
+      // to net.fetch so that Electron can handle seeking for larger audio files.
+      return net.fetch(fileUrl, {
+        bypassCustomProtocolHandlers: true, // Prevent infinite loops
+        method: request.method,
+        headers: request.headers,
+        // @ts-ignore body can be null
+        body: request.body,
+        duplex: 'half'
+      })
     } catch (e) {
       console.error('Protocol error:', e)
       return new Response(null, { status: 400 })
