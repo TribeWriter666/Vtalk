@@ -156,30 +156,35 @@ app.whenReady().then(() => {
   createWindow()
   createTray()
 
-  // Register protocol to serve local audio files safely
-  protocol.handle('atom', (request) => {
+  // Register protocol to serve local audio files safely by ID
+  protocol.handle('atom', async (request) => {
     try {
-      // The URL will be in the format atom://me/C:/path/to/file
       const url = new URL(request.url)
-      let decodedPath = decodeURIComponent(url.pathname)
+      const id = parseInt(url.hostname)
       
-      // On Windows, pathname starts with /C:/..., strip the leading slash
-      if (process.platform === 'win32' && decodedPath.startsWith('/')) {
-        decodedPath = decodedPath.slice(1)
+      if (isNaN(id)) return new Response(null, { status: 400 })
+
+      const transcripts = await getTranscripts()
+      const transcript = transcripts.find(t => t.id === id)
+      
+      if (!transcript || !transcript.audio_path || !fs.existsSync(transcript.audio_path)) {
+        return new Response(null, { status: 404 })
       }
+
+      const filePath = transcript.audio_path
+      const stats = fs.statSync(filePath)
+      const contentType = filePath.endsWith('.wav') ? 'audio/wav' : 'audio/webm'
       
-      const fileUrl = pathToFileURL(decodedPath).toString()
-      
-      return net.fetch(fileUrl, {
-        method: request.method,
-        headers: request.headers,
-        // @ts-ignore
-        body: request.body,
-        duplex: 'half'
+      return new Response(fs.createReadStream(filePath) as any, {
+        headers: {
+          'Content-Type': contentType,
+          'Content-Length': stats.size.toString(),
+          'Accept-Ranges': 'bytes'
+        }
       })
     } catch (e) {
       console.error('Protocol error:', e)
-      return new Response(null, { status: 400 })
+      return new Response(null, { status: 500 })
     }
   })
 

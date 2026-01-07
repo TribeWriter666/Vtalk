@@ -136,10 +136,8 @@ export default function App() {
       audioRef.current.pause()
     }
 
-    // Use a clean URL format for the atom protocol
-    // On Windows, Audio(atom://me/C:/...) is handled by our protocol handler
-    const normalizedPath = path.replace(/\\/g, '/')
-    const audio = new Audio(`atom://me/${normalizedPath}`)
+    // Use the transcript ID to fetch the audio via the atom protocol
+    const audio = new Audio(`atom://${id}`)
     audioRef.current = audio
     audio.onerror = (e) => {
       console.error('Audio error details:', audio.error)
