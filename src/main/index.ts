@@ -5,7 +5,7 @@ import { optimizer, is } from '@electron-toolkit/utils'
 import fs from 'fs'
 import path from 'path'
 import { exec } from 'child_process'
-import { saveTranscript, getTranscripts, deleteTranscript, getSetting, setSetting, getStats, getAllTranscripts } from './db'
+import { saveTranscript, getTranscripts, deleteTranscript, getSetting, setSetting, getStats } from './db'
 
 // Use require for native modules to avoid bundling issues
 const GKL = require('node-global-key-listener')
@@ -212,15 +212,14 @@ app.whenReady().then(() => {
     try {
       const url = new URL(request.url)
       // If URL is atom://audio/123, hostname is 'audio', pathname is '/123'
-      const idStr = url.pathname.replace(/^\//, '')
-      const id = parseInt(idStr)
+      const id = parseInt(url.pathname.replace(/^\//, ''))
       
       if (isNaN(id)) {
-        console.error('Invalid ID in protocol request:', request.url, 'Parsed ID string:', idStr)
+        console.error('Invalid ID in protocol request:', request.url)
         return new Response(null, { status: 400 })
       }
 
-      const transcripts = await getTranscripts(10000, 0) // Get all to find by ID
+      const transcripts = await getTranscripts()
       const transcript = transcripts.find(t => t.id === id)
       
       if (!transcript || !transcript.audio_path) {
@@ -233,8 +232,15 @@ app.whenReady().then(() => {
         return new Response(null, { status: 404 })
       }
 
+      // Delegate to net.fetch with a file:// URL. 
+      // This is the most robust way as it handles Range headers, 
+      // streaming, and MIME types automatically.
       const fileUrl = pathToFileURL(transcript.audio_path).toString()
-      return net.fetch(fileUrl)
+      return net.fetch(fileUrl, {
+        bypassCustomProtocolHandlers: true,
+        method: request.method,
+        headers: request.headers
+      })
     } catch (e) {
       console.error('Protocol error:', e)
       return new Response(null, { status: 500 })
@@ -443,7 +449,7 @@ ipcMain.on('open-recordings-folder', () => {
 
 ipcMain.handle('export-metadata', async () => {
   try {
-    const transcripts = await getAllTranscripts()
+    const transcripts = await getTranscripts()
     const recordingsDir = path.join(app.getPath('userData'), 'recordings')
     const csvPath = path.join(recordingsDir, 'metadata.csv')
     

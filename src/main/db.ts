@@ -45,30 +45,27 @@ export function getTranscripts(limit: number = 50, offset: number = 0) {
   return stmt.all(limit, offset)
 }
 
-export function getAllTranscripts() {
-  const stmt = db.prepare('SELECT * FROM transcripts ORDER BY created_at DESC')
-  return stmt.all()
+export function getStats() {
+  const stmt = db.prepare(`
+    SELECT 
+      COUNT(*) as count,
+      SUM(duration) as total_duration,
+      AVG(wpm) as avg_wpm,
+      (SELECT SUM(length(text) - length(replace(text, ' ', '')) + 1) FROM transcripts) as total_words
+    FROM transcripts
+  `)
+  const row = stmt.get()
+  return {
+    totalCount: row.count || 0,
+    totalDuration: row.total_duration || 0,
+    avgWpm: Math.round(row.avg_wpm || 0),
+    totalWords: row.total_words || 0
+  }
 }
 
 export function deleteTranscript(id: number) {
   const stmt = db.prepare('DELETE FROM transcripts WHERE id = ?')
   return stmt.run(id)
-}
-
-export function getStats() {
-  const stmt = db.prepare('SELECT COUNT(*) as count, SUM(duration) as totalDuration, AVG(wpm) as avgWpm FROM transcripts')
-  const stats = stmt.get()
-  
-  // Also get total words manually since we store the text
-  const allText = db.prepare('SELECT text FROM transcripts').all()
-  const totalWords = allText.reduce((acc, row) => acc + (row.text.trim() ? row.text.trim().split(/\s+/).length : 0), 0)
-  
-  return {
-    count: stats.count,
-    totalDuration: stats.totalDuration || 0,
-    avgWpm: Math.round(stats.avgWpm || 0),
-    totalWords
-  }
 }
 
 export function getSetting(key: string) {

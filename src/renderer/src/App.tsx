@@ -22,7 +22,13 @@ interface Transcript {
 export default function App() {
   const { isRecording } = useRecorder()
   const [transcripts, setTranscripts] = useState<Transcript[]>([])
+  const [stats, setStats] = useState({ totalWords: 0, totalDuration: 0, avgWpm: 0 })
   const [isTranscribing, setIsTranscribing] = useState(false)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [hasMore, setHasMore] = useState(true)
+  const [offset, setOffset] = useState(0)
+  const PAGE_SIZE = 50
+
   const [lastAudio, setLastAudio] = useState<{ buffer: ArrayBuffer, duration: number } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [copiedId, setCopiedId] = useState<number | null>(null)
@@ -31,13 +37,8 @@ export default function App() {
   const [showSettings, setShowSettings] = useState(false)
   const [showSetup, setShowSetup] = useState(false)
   const [apiKey, setApiKey] = useState('')
-  const [isLoadingMore, setIsLoadingMore] = useState(false)
-  const [hasMore, setHasMore] = useState(true)
-  const [stats, setStats] = useState({ totalWords: 0, avgWpm: 0, totalDuration: 0 })
   const audioRef = useRef<HTMLAudioElement | null>(null)
-  const scrollRef = useRef<HTMLDivElement>(null)
-
-  const ITEMS_PER_PAGE = 30
+  const loadMoreRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
     // @ts-ignore
@@ -46,7 +47,7 @@ export default function App() {
       return
     }
 
-    const init = async () => {
+    const checkKey = async () => {
       // @ts-ignore
       const hasKey = await window.api.checkOpenAIKey()
       if (!hasKey) {
@@ -56,10 +57,10 @@ export default function App() {
         const currentKey = await window.api.getOpenAIKey()
         setApiKey(currentKey)
       }
-      await loadInitialData()
     }
 
-    init()
+    checkKey()
+    initialLoad()
 
     const handleFinished = async (e: any) => {
       const { buffer, duration } = e.detail
@@ -78,40 +79,55 @@ export default function App() {
     return () => window.removeEventListener('recording-finished' as any, handleFinished)
   }, [])
 
-  const loadInitialData = async () => {
+  // Infinite scroll observer
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !loadingMore && !isTranscribing) {
+          loadMore()
+        }
+      },
+      { threshold: 0.1 }
+    )
+
+    if (loadMoreRef.current) {
+      observer.observe(loadMoreRef.current)
+    }
+
+    return () => observer.disconnect()
+  }, [hasMore, loadingMore, offset, isTranscribing])
+
+  const initialLoad = async () => {
     // @ts-ignore
-    const [initialTranscripts, initialStats] = await Promise.all([
+    const [data, statsData] = await Promise.all([
       // @ts-ignore
-      window.api.getTranscripts(ITEMS_PER_PAGE, 0),
+      window.api.getTranscripts(PAGE_SIZE, 0),
       // @ts-ignore
       window.api.getStats()
     ])
-    setTranscripts(initialTranscripts)
-    setStats(initialStats)
-    setHasMore(initialTranscripts.length === ITEMS_PER_PAGE)
+    setTranscripts(data)
+    setStats(statsData)
+    setOffset(data.length)
+    setHasMore(data.length === PAGE_SIZE)
   }
 
   const loadMore = async () => {
-    if (isLoadingMore || !hasMore) return
-    setIsLoadingMore(true)
-    
+    if (loadingMore || !hasMore) return
+    setLoadingMore(true)
     // @ts-ignore
-    const nextBatch = await window.api.getTranscripts(ITEMS_PER_PAGE, transcripts.length)
-    
-    if (nextBatch.length < ITEMS_PER_PAGE) {
-      setHasMore(false)
+    const data = await window.api.getTranscripts(PAGE_SIZE, offset)
+    if (data.length > 0) {
+      setTranscripts(prev => [...prev, ...data])
+      setOffset(prev => prev + data.length)
     }
-    
-    setTranscripts(prev => [...prev, ...nextBatch])
-    setIsLoadingMore(false)
+    setHasMore(data.length === PAGE_SIZE)
+    setLoadingMore(false)
   }
 
-  const handleScroll = () => {
-    if (!scrollRef.current) return
-    const { scrollTop, scrollHeight, clientHeight } = scrollRef.current
-    if (scrollHeight - scrollTop <= clientHeight + 100) {
-      loadMore()
-    }
+  const loadTranscripts = async () => {
+    // @ts-ignore
+    const data = await window.api.getTranscripts(PAGE_SIZE, 0)
+    setTranscripts(data)
   }
 
   const handleTranscription = async (buffer: ArrayBuffer, duration: number) => {
@@ -143,14 +159,14 @@ export default function App() {
         ...prev.filter(t => t.id !== tempId)
       ])
 
+      // Refresh stats
+      // @ts-ignore
+      const statsData = await window.api.getStats()
+      setStats(statsData)
+
       // Auto-paste
       // @ts-ignore
       window.api.pasteText(text)
-
-      // Refresh stats
-      // @ts-ignore
-      const newStats = await window.api.getStats()
-      setStats(newStats)
     } catch (error) {
       console.error('Transcription failed:', error)
       setTranscripts(prev => prev.map(t => 
@@ -177,8 +193,8 @@ export default function App() {
     setTranscripts(prev => prev.filter(t => t.id !== id))
     // Refresh stats
     // @ts-ignore
-    const newStats = await window.api.getStats()
-    setStats(newStats)
+    const statsData = await window.api.getStats()
+    setStats(statsData)
   }
 
   const copyToClipboard = (text: string, id: number) => {
@@ -232,11 +248,14 @@ export default function App() {
   }
 
   const calculateAverageWpm = () => {
-    return stats.avgWpm
+    if (transcripts.length === 0) return 0
+    const valid = transcripts.filter(t => t.wpm > 0)
+    if (valid.length === 0) return 0
+    return Math.round(valid.reduce((acc, t) => acc + t.wpm, 0) / valid.length)
   }
 
   const calculateTotalDuration = () => {
-    const totalSeconds = stats.totalDuration
+    const totalSeconds = transcripts.reduce((acc, t) => acc + t.duration, 0)
     if (totalSeconds < 60) return `${totalSeconds.toFixed(0)}s`
     const mins = Math.floor(totalSeconds / 60)
     const secs = Math.round(totalSeconds % 60)
@@ -461,7 +480,7 @@ export default function App() {
             <BarChart3 size={10} /> Avg. WPM
           </div>
           <div className="text-base font-mono font-bold text-blue-400/90 tabular-nums">
-            {calculateAverageWpm()}
+            {stats.avgWpm}
           </div>
         </div>
         
@@ -522,11 +541,7 @@ export default function App() {
       </AnimatePresence>
 
       {/* Main Content */}
-      <main 
-        ref={scrollRef}
-        onScroll={handleScroll}
-        className="flex-1 overflow-y-auto p-6 space-y-4"
-      >
+      <main className="flex-1 overflow-y-auto p-6 space-y-4">
         <AnimatePresence initial={false}>
           {transcripts.map((transcript) => (
             <motion.div
@@ -598,11 +613,12 @@ export default function App() {
           ))}
         </AnimatePresence>
 
-        {isLoadingMore && (
-          <div className="flex justify-center p-4">
-            <div className="animate-spin w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full" />
-          </div>
-        )}
+        {/* Sentinel for infinite scroll */}
+        <div ref={loadMoreRef} className="h-10 flex items-center justify-center">
+          {loadingMore && (
+            <div className="animate-spin w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full" />
+          )}
+        </div>
 
         {transcripts.length === 0 && !isTranscribing && (
           <div className="h-full flex flex-col items-center justify-center text-slate-500 space-y-4 py-20">
