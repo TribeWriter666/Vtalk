@@ -94,6 +94,9 @@ function createOverlayWindow(): void {
     }
   })
 
+  // Set to highest possible level to stay above everything
+  overlayWindow.setAlwaysOnTop(true, 'screen-saver')
+
   // Center bottom of the screen
   const { screen } = require('electron')
   const primaryDisplay = screen.getPrimaryDisplay()
@@ -140,7 +143,7 @@ function createWindow(): void {
   })
 
   // Handle renderer crashes
-  mainWindow.webContents.on('render-process-gone', (event, details) => {
+  mainWindow.webContents.on('render-process-gone', (_, details) => {
     console.error('Render process gone:', details)
     if (details.reason !== 'clean-exit' && details.reason !== 'killed') {
       console.log('Attempting to reload crashed renderer...')
@@ -330,6 +333,7 @@ function startRecording() {
   }
 
   if (overlayWindow && !overlayWindow.isDestroyed()) {
+    overlayWindow.setAlwaysOnTop(true, 'screen-saver')
     overlayWindow.show()
     overlayWindow.webContents.send('recording-status', true)
   }
