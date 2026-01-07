@@ -40,7 +40,12 @@ export function saveTranscript(text: string, duration: number, audioPath?: strin
   return { id: info.lastInsertRowid, text, duration, wpm, audio_path: audioPath, created_at: new Date().toISOString() }
 }
 
-export function getTranscripts() {
+export function getTranscripts(limit: number = 50, offset: number = 0) {
+  const stmt = db.prepare('SELECT * FROM transcripts ORDER BY created_at DESC LIMIT ? OFFSET ?')
+  return stmt.all(limit, offset)
+}
+
+export function getAllTranscripts() {
   const stmt = db.prepare('SELECT * FROM transcripts ORDER BY created_at DESC')
   return stmt.all()
 }
@@ -48,6 +53,22 @@ export function getTranscripts() {
 export function deleteTranscript(id: number) {
   const stmt = db.prepare('DELETE FROM transcripts WHERE id = ?')
   return stmt.run(id)
+}
+
+export function getStats() {
+  const stmt = db.prepare('SELECT COUNT(*) as count, SUM(duration) as totalDuration, AVG(wpm) as avgWpm FROM transcripts')
+  const stats = stmt.get()
+  
+  // Also get total words manually since we store the text
+  const allText = db.prepare('SELECT text FROM transcripts').all()
+  const totalWords = allText.reduce((acc, row) => acc + (row.text.trim() ? row.text.trim().split(/\s+/).length : 0), 0)
+  
+  return {
+    count: stats.count,
+    totalDuration: stats.totalDuration || 0,
+    avgWpm: Math.round(stats.avgWpm || 0),
+    totalWords
+  }
 }
 
 export function getSetting(key: string) {

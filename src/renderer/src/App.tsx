@@ -31,7 +31,13 @@ export default function App() {
   const [showSettings, setShowSettings] = useState(false)
   const [showSetup, setShowSetup] = useState(false)
   const [apiKey, setApiKey] = useState('')
+  const [isLoadingMore, setIsLoadingMore] = useState(false)
+  const [hasMore, setHasMore] = useState(true)
+  const [stats, setStats] = useState({ totalWords: 0, avgWpm: 0, totalDuration: 0 })
   const audioRef = useRef<HTMLAudioElement | null>(null)
+  const scrollRef = useRef<HTMLDivElement>(null)
+
+  const ITEMS_PER_PAGE = 30
 
   useEffect(() => {
     // @ts-ignore
@@ -40,7 +46,7 @@ export default function App() {
       return
     }
 
-    const checkKey = async () => {
+    const init = async () => {
       // @ts-ignore
       const hasKey = await window.api.checkOpenAIKey()
       if (!hasKey) {
@@ -50,10 +56,10 @@ export default function App() {
         const currentKey = await window.api.getOpenAIKey()
         setApiKey(currentKey)
       }
+      await loadInitialData()
     }
 
-    checkKey()
-    loadTranscripts()
+    init()
 
     const handleFinished = async (e: any) => {
       const { buffer, duration } = e.detail
@@ -72,10 +78,40 @@ export default function App() {
     return () => window.removeEventListener('recording-finished' as any, handleFinished)
   }, [])
 
-  const loadTranscripts = async () => {
+  const loadInitialData = async () => {
     // @ts-ignore
-    const data = await window.api.getTranscripts()
-    setTranscripts(data)
+    const [initialTranscripts, initialStats] = await Promise.all([
+      // @ts-ignore
+      window.api.getTranscripts(ITEMS_PER_PAGE, 0),
+      // @ts-ignore
+      window.api.getStats()
+    ])
+    setTranscripts(initialTranscripts)
+    setStats(initialStats)
+    setHasMore(initialTranscripts.length === ITEMS_PER_PAGE)
+  }
+
+  const loadMore = async () => {
+    if (isLoadingMore || !hasMore) return
+    setIsLoadingMore(true)
+    
+    // @ts-ignore
+    const nextBatch = await window.api.getTranscripts(ITEMS_PER_PAGE, transcripts.length)
+    
+    if (nextBatch.length < ITEMS_PER_PAGE) {
+      setHasMore(false)
+    }
+    
+    setTranscripts(prev => [...prev, ...nextBatch])
+    setIsLoadingMore(false)
+  }
+
+  const handleScroll = () => {
+    if (!scrollRef.current) return
+    const { scrollTop, scrollHeight, clientHeight } = scrollRef.current
+    if (scrollHeight - scrollTop <= clientHeight + 100) {
+      loadMore()
+    }
   }
 
   const handleTranscription = async (buffer: ArrayBuffer, duration: number) => {
@@ -110,6 +146,11 @@ export default function App() {
       // Auto-paste
       // @ts-ignore
       window.api.pasteText(text)
+
+      // Refresh stats
+      // @ts-ignore
+      const newStats = await window.api.getStats()
+      setStats(newStats)
     } catch (error) {
       console.error('Transcription failed:', error)
       setTranscripts(prev => prev.map(t => 
@@ -134,6 +175,10 @@ export default function App() {
     // @ts-ignore
     await window.api.deleteTranscript(id)
     setTranscripts(prev => prev.filter(t => t.id !== id))
+    // Refresh stats
+    // @ts-ignore
+    const newStats = await window.api.getStats()
+    setStats(newStats)
   }
 
   const copyToClipboard = (text: string, id: number) => {
@@ -187,14 +232,11 @@ export default function App() {
   }
 
   const calculateAverageWpm = () => {
-    if (transcripts.length === 0) return 0
-    const valid = transcripts.filter(t => t.wpm > 0)
-    if (valid.length === 0) return 0
-    return Math.round(valid.reduce((acc, t) => acc + t.wpm, 0) / valid.length)
+    return stats.avgWpm
   }
 
   const calculateTotalDuration = () => {
-    const totalSeconds = transcripts.reduce((acc, t) => acc + t.duration, 0)
+    const totalSeconds = stats.totalDuration
     if (totalSeconds < 60) return `${totalSeconds.toFixed(0)}s`
     const mins = Math.floor(totalSeconds / 60)
     const secs = Math.round(totalSeconds % 60)
@@ -430,7 +472,7 @@ export default function App() {
             <Type size={10} /> Total Words
           </div>
           <div className="text-base font-mono font-bold text-emerald-400/90 tabular-nums">
-            {transcripts.reduce((acc, t) => acc + (t.text.trim() ? t.text.trim().split(/\s+/).length : 0), 0)}
+            {stats.totalWords}
           </div>
         </div>
 
@@ -480,7 +522,11 @@ export default function App() {
       </AnimatePresence>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-y-auto p-6 space-y-4">
+      <main 
+        ref={scrollRef}
+        onScroll={handleScroll}
+        className="flex-1 overflow-y-auto p-6 space-y-4"
+      >
         <AnimatePresence initial={false}>
           {transcripts.map((transcript) => (
             <motion.div
@@ -551,6 +597,12 @@ export default function App() {
             </motion.div>
           ))}
         </AnimatePresence>
+
+        {isLoadingMore && (
+          <div className="flex justify-center p-4">
+            <div className="animate-spin w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full" />
+          </div>
+        )}
 
         {transcripts.length === 0 && !isTranscribing && (
           <div className="h-full flex flex-col items-center justify-center text-slate-500 space-y-4 py-20">

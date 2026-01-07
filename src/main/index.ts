@@ -212,14 +212,16 @@ app.whenReady().then(() => {
     try {
       const url = new URL(request.url)
       // If URL is atom://audio/123, hostname is 'audio', pathname is '/123'
-      const id = parseInt(url.pathname.replace(/^\//, ''))
+      const idStr = url.pathname.replace(/^\//, '')
+      const id = parseInt(idStr)
       
       if (isNaN(id)) {
-        console.error('Invalid ID in protocol request:', request.url)
+        console.error('Invalid ID in protocol request:', request.url, 'Parsed ID string:', idStr)
         return new Response(null, { status: 400 })
       }
 
-      const transcripts = await getTranscripts()
+      const { getTranscripts } = require('./db')
+      const transcripts = await getTranscripts(10000, 0) // Get all to find by ID
       const transcript = transcripts.find(t => t.id === id)
       
       if (!transcript || !transcript.audio_path) {
@@ -232,15 +234,8 @@ app.whenReady().then(() => {
         return new Response(null, { status: 404 })
       }
 
-      // Delegate to net.fetch with a file:// URL. 
-      // This is the most robust way as it handles Range headers, 
-      // streaming, and MIME types automatically.
       const fileUrl = pathToFileURL(transcript.audio_path).toString()
-      return net.fetch(fileUrl, {
-        bypassCustomProtocolHandlers: true,
-        method: request.method,
-        headers: request.headers
-      })
+      return net.fetch(fileUrl)
     } catch (e) {
       console.error('Protocol error:', e)
       return new Response(null, { status: 500 })
@@ -412,8 +407,13 @@ ipcMain.handle('save-transcript', async (_, { text, duration, audioPath }) => {
   return saveTranscript(text, duration, audioPath)
 })
 
-ipcMain.handle('get-transcripts', async () => {
-  return getTranscripts()
+ipcMain.handle('get-transcripts', async (_, limit, offset) => {
+  return getTranscripts(limit, offset)
+})
+
+ipcMain.handle('get-stats', async () => {
+  const { getStats } = require('./db')
+  return getStats()
 })
 
 ipcMain.handle('delete-transcript', async (_, id) => {
@@ -445,7 +445,8 @@ ipcMain.on('open-recordings-folder', () => {
 
 ipcMain.handle('export-metadata', async () => {
   try {
-    const transcripts = await getTranscripts()
+    const { getAllTranscripts } = require('./db')
+    const transcripts = await getAllTranscripts()
     const recordingsDir = path.join(app.getPath('userData'), 'recordings')
     const csvPath = path.join(recordingsDir, 'metadata.csv')
     
