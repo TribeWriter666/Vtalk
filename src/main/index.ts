@@ -367,38 +367,49 @@ ipcMain.handle('transcribe-audio', async (_, buffer: Buffer) => {
     const tempFile = path.join(app.getPath('temp'), `vtalk_${Date.now()}.webm`)
     fs.writeFileSync(tempFile, Buffer.from(buffer))
 
-    // Start transcription (keep it fast by sending the webm)
+    // Start transcription
     const transcriptionPromise = openai.audio.transcriptions.create({
       file: fs.createReadStream(tempFile),
       model: 'whisper-1'
     })
 
-    // Create recordings directory
-    const recordingsDir = path.join(app.getPath('userData'), 'recordings')
-    if (!fs.existsSync(recordingsDir)) {
-      fs.mkdirSync(recordingsDir, { recursive: true })
+    const shouldSaveAudio = getSetting('save_audio') !== 'false'
+    let audioPath: string | null = null
+
+    if (shouldSaveAudio) {
+      const recordingsDir = path.join(app.getPath('userData'), 'recordings')
+      if (!fs.existsSync(recordingsDir)) {
+        fs.mkdirSync(recordingsDir, { recursive: true })
+      }
+
+      const timestamp = Date.now()
+      const permanentFile = path.join(recordingsDir, `recording_${timestamp}.mp3`)
+
+      // Conversion happens in parallel with transcription
+      // Using high quality MP3 (192k) and forcing mono (-ac 1)
+      const conversionPromise = new Promise<string>((resolve, reject) => {
+        ffmpeg(tempFile)
+          .toFormat('mp3')
+          .audioBitrate('192k')
+          .audioChannels(1) // Force mono
+          .on('end', () => resolve(permanentFile))
+          .on('error', (err) => reject(err))
+          .save(permanentFile)
+      })
+
+      const [response, pAudioPath] = await Promise.all([
+        transcriptionPromise,
+        conversionPromise
+      ])
+      
+      audioPath = pAudioPath
+      fs.unlinkSync(tempFile)
+      return { text: response.text, audioPath }
+    } else {
+      const response = await transcriptionPromise
+      fs.unlinkSync(tempFile)
+      return { text: response.text, audioPath: null }
     }
-
-    const timestamp = Date.now()
-    const permanentFile = path.join(recordingsDir, `recording_${timestamp}.wav`)
-
-    // Conversion happens in parallel with transcription
-    const conversionPromise = new Promise<string>((resolve, reject) => {
-      ffmpeg(tempFile)
-        .toFormat('wav')
-        .on('end', () => resolve(permanentFile))
-        .on('error', (err) => reject(err))
-        .save(permanentFile)
-    })
-
-    // Wait for both to finish (conversion is usually much faster than transcription)
-    const [response, audioPath] = await Promise.all([
-      transcriptionPromise,
-      conversionPromise
-    ])
-
-    fs.unlinkSync(tempFile)
-    return { text: response.text, audioPath }
   } catch (error) {
     console.error('Transcription error:', error)
     if (Notification.isSupported()) {
@@ -437,6 +448,14 @@ ipcMain.handle('save-openai-key', async (_, key: string) => {
 
 ipcMain.handle('get-openai-key', async () => {
   return getSetting('openai_api_key') || process.env.OPENAI_API_KEY || ''
+})
+
+ipcMain.handle('get-setting', async (_, key: string) => {
+  return getSetting(key)
+})
+
+ipcMain.handle('set-setting', async (_, key: string, value: string) => {
+  return setSetting(key, value)
 })
 
 ipcMain.on('open-recordings-folder', () => {

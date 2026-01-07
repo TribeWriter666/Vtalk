@@ -37,6 +37,7 @@ export default function App() {
   const [showSettings, setShowSettings] = useState(false)
   const [showSetup, setShowSetup] = useState(false)
   const [apiKey, setApiKey] = useState('')
+  const [saveAudio, setSaveAudio] = useState(true)
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const loadMoreRef = useRef<HTMLDivElement | null>(null)
 
@@ -59,7 +60,16 @@ export default function App() {
       }
     }
 
+    const loadSettings = async () => {
+      // @ts-ignore
+      const savedSaveAudio = await window.api.getSetting('save_audio')
+      if (savedSaveAudio !== null) {
+        setSaveAudio(savedSaveAudio !== 'false')
+      }
+    }
+
     checkKey()
+    loadSettings()
     initialLoad()
 
     const handleFinished = async (e: any) => {
@@ -277,6 +287,13 @@ export default function App() {
     setError(null)
   }
 
+  const toggleSaveAudio = async () => {
+    const newValue = !saveAudio
+    setSaveAudio(newValue)
+    // @ts-ignore
+    await window.api.setSetting('save_audio', String(newValue))
+  }
+
   if (!window.api && !error) {
     return (
       <div className="h-screen flex items-center justify-center bg-slate-950 text-slate-400 p-10 text-center">
@@ -398,37 +415,54 @@ export default function App() {
               </button>
             </div>
 
-            <div className="space-y-6">
-              <section className="space-y-3">
-                <h3 className="text-sm font-medium text-slate-400 uppercase tracking-widest">Voice Training Data</h3>
-                <div className="grid grid-cols-2 gap-3">
-                  <button 
-                    onClick={handleExport}
-                    disabled={exporting}
-                    className={cn(
-                      "flex flex-col items-center justify-center gap-3 p-4 bg-slate-900 border border-slate-800 rounded-xl transition-all group",
-                      exporting ? "border-emerald-500/50 bg-emerald-500/5" : "hover:border-slate-700 hover:bg-slate-800/50"
-                    )}
-                  >
-                    {exporting ? <Check className="text-emerald-400" /> : <FileDown className="text-emerald-500 group-hover:scale-110 transition-transform" />}
-                    <div className="text-center">
-                      <div className="text-sm font-medium text-slate-200">Export CSV</div>
-                      <div className="text-[10px] text-slate-500">For Eleven Labs</div>
-                    </div>
-                  </button>
+                <div className="space-y-6">
+                  <section className="space-y-3">
+                    <h3 className="text-sm font-medium text-slate-400 uppercase tracking-widest">Storage & AI Training</h3>
+                    <div className="p-4 bg-slate-900 border border-slate-800 rounded-xl space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div className="space-y-0.5">
+                          <div className="text-sm font-medium text-slate-200">Save Audio Recordings</div>
+                          <div className="text-[10px] text-slate-500 leading-relaxed">
+                            Required for voice cloning (Eleven Labs). Uses high-quality Mono MP3.
+                          </div>
+                        </div>
+                        <button 
+                          onClick={toggleSaveAudio}
+                          className={cn(
+                            "relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none",
+                            saveAudio ? "bg-blue-600" : "bg-slate-700"
+                          )}
+                        >
+                          <span className={cn(
+                            "inline-block h-4 w-4 transform rounded-full bg-white transition-transform",
+                            saveAudio ? "translate-x-6" : "translate-x-1"
+                          )} />
+                        </button>
+                      </div>
 
-                  <button 
-                    onClick={openRecordingsFolder}
-                    className="flex flex-col items-center justify-center gap-3 p-4 bg-slate-900 border border-slate-800 rounded-xl hover:border-slate-700 hover:bg-slate-800/50 transition-all group"
-                  >
-                    <Folder className="text-blue-400 group-hover:scale-110 transition-transform" />
-                    <div className="text-center">
-                      <div className="text-sm font-medium text-slate-200">Open Folder</div>
-                      <div className="text-[10px] text-slate-500">All WAV recordings</div>
+                      <div className="grid grid-cols-2 gap-3 pt-2">
+                        <button 
+                          onClick={handleExport}
+                          disabled={exporting}
+                          className={cn(
+                            "flex flex-col items-center justify-center gap-2 p-3 bg-slate-950 border border-slate-800 rounded-lg transition-all group",
+                            exporting ? "border-emerald-500/50 bg-emerald-500/5" : "hover:border-slate-700 hover:bg-slate-800"
+                          )}
+                        >
+                          {exporting ? <Check size={16} className="text-emerald-400" /> : <FileDown size={16} className="text-emerald-500 group-hover:scale-110 transition-transform" />}
+                          <div className="text-[10px] font-medium text-slate-300 text-center">Export CSV<br/><span className="text-[8px] opacity-50 font-normal">For Eleven Labs</span></div>
+                        </button>
+
+                        <button 
+                          onClick={openRecordingsFolder}
+                          className="flex flex-col items-center justify-center gap-2 p-3 bg-slate-950 border border-slate-800 rounded-lg hover:border-slate-700 hover:bg-slate-800 transition-all group"
+                        >
+                          <Folder size={16} className="text-blue-400 group-hover:scale-110 transition-transform" />
+                          <div className="text-[10px] font-medium text-slate-300 text-center">Open Folder<br/><span className="text-[8px] opacity-50 font-normal">Manage Files</span></div>
+                        </button>
+                      </div>
                     </div>
-                  </button>
-                </div>
-              </section>
+                  </section>
 
               <section className="space-y-3">
                 <h3 className="text-sm font-medium text-slate-400 uppercase tracking-widest">Account</h3>

@@ -17,7 +17,9 @@ const api = {
   saveOpenAIKey: (key) => ipcRenderer.invoke('save-openai-key', key),
   getOpenAIKey: () => ipcRenderer.invoke('get-openai-key'),
   openRecordingsFolder: () => ipcRenderer.send('open-recordings-folder'),
-  exportMetadata: () => ipcRenderer.invoke('export-metadata')
+  exportMetadata: () => ipcRenderer.invoke('export-metadata'),
+  getSetting: (key) => ipcRenderer.invoke('get-setting', key),
+  setSetting: (key, value) => ipcRenderer.invoke('set-setting', key, value)
 }
 
 // Directly expose without the toolkit helper to be 100% sure
