@@ -45,6 +45,11 @@ export function getTranscripts(limit: number = 50, offset: number = 0) {
   return stmt.all(limit, offset)
 }
 
+export function getAllTranscriptsIter() {
+  const stmt = db.prepare('SELECT * FROM transcripts ORDER BY created_at DESC')
+  return stmt.iterate()
+}
+
 export function getStats() {
   const stmt = db.prepare(`
     SELECT 

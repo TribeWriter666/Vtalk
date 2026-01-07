@@ -5,7 +5,7 @@ import { optimizer, is } from '@electron-toolkit/utils'
 import fs from 'fs'
 import path from 'path'
 import { exec } from 'child_process'
-import { saveTranscript, getTranscripts, deleteTranscript, getSetting, setSetting, getStats } from './db'
+import { saveTranscript, getTranscripts, deleteTranscript, getSetting, setSetting, getStats, getAllTranscriptsIter } from './db'
 
 // Use require for native modules to avoid bundling issues
 const GKL = require('node-global-key-listener')
@@ -449,22 +449,27 @@ ipcMain.on('open-recordings-folder', () => {
 
 ipcMain.handle('export-metadata', async () => {
   try {
-    const transcripts = await getTranscripts()
     const recordingsDir = path.join(app.getPath('userData'), 'recordings')
+    if (!fs.existsSync(recordingsDir)) {
+      fs.mkdirSync(recordingsDir, { recursive: true })
+    }
     const csvPath = path.join(recordingsDir, 'metadata.csv')
     
-    let content = 'audio_file,transcript\n'
-    for (const t of transcripts) {
+    const writeStream = fs.createWriteStream(csvPath)
+    writeStream.write('audio_file,transcript\n')
+
+    for (const t of getAllTranscriptsIter()) {
       if (t.audio_path && fs.existsSync(t.audio_path)) {
         const fileName = path.basename(t.audio_path)
-        // Escape quotes for CSV
         const escapedText = t.text.replace(/"/g, '""')
-        content += `${fileName},"${escapedText}"\n`
+        writeStream.write(`${fileName},"${escapedText}"\n`)
       }
     }
-    
-    fs.writeFileSync(csvPath, content)
-    return csvPath
+
+    return new Promise((resolve, reject) => {
+      writeStream.end(() => resolve(csvPath))
+      writeStream.on('error', reject)
+    })
   } catch (error) {
     console.error('Export failed:', error)
     throw error
