@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useRecorder } from './hooks/useRecorder'
-import { Mic, MicOff, Copy, Trash2, RotateCcw, BarChart3, Clock, Type, Check, Play, Pause, Folder } from 'lucide-react'
+import { Mic, MicOff, Copy, Trash2, RotateCcw, BarChart3, Clock, Type, Check, Play, Pause, Folder, FileDown } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
@@ -27,6 +27,7 @@ export default function App() {
   const [error, setError] = useState<string | null>(null)
   const [copiedId, setCopiedId] = useState<number | null>(null)
   const [playingId, setPlayingId] = useState<number | null>(null)
+  const [exporting, setExporting] = useState(false)
   const audioRef = useRef<HTMLAudioElement | null>(null)
 
   useEffect(() => {
@@ -135,12 +136,29 @@ export default function App() {
     }
 
     // Properly encode the path for the atom protocol
-    const encodedPath = encodeURIComponent(path).replace(/%3A/g, ':').replace(/%5C/g, '/')
-    const audio = new Audio(`atom:///${encodedPath}`)
+    // Ensure backslashes are forward slashes and the path is encoded
+    const normalizedPath = path.replace(/\\/g, '/')
+    const audio = new Audio(`atom://${normalizedPath}`)
     audioRef.current = audio
-    audio.play().catch(e => console.error('Audio play failed:', e))
+    audio.play().catch(e => {
+      console.error('Audio play failed:', e)
+      setPlayingId(null)
+    })
     setPlayingId(id)
     audio.onended = () => setPlayingId(null)
+  }
+
+  const handleExport = async () => {
+    setExporting(true)
+    try {
+      // @ts-ignore
+      await window.api.exportMetadata()
+      // Show success briefly
+      setTimeout(() => setExporting(false), 2000)
+    } catch (e) {
+      console.error('Export failed:', e)
+      setExporting(false)
+    }
   }
 
   const openRecordingsFolder = () => {
@@ -208,14 +226,29 @@ export default function App() {
           </div>
         </div>
 
-        <button 
-          onClick={openRecordingsFolder}
-          className="flex items-center gap-2 px-3 py-2 bg-slate-800/50 hover:bg-slate-800 border border-slate-700 rounded-lg text-slate-300 hover:text-white transition-all text-sm group"
-          title="Open Recordings Folder"
-        >
-          <Folder size={16} className="text-blue-400 group-hover:scale-110 transition-transform" />
-          <span>Recordings</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <button 
+            onClick={handleExport}
+            disabled={exporting}
+            className={cn(
+              "flex items-center gap-2 px-3 py-2 bg-slate-800/50 hover:bg-slate-800 border border-slate-700 rounded-lg transition-all text-sm group",
+              exporting ? "text-emerald-400 border-emerald-500/50" : "text-slate-300 hover:text-white"
+            )}
+            title="Export metadata.csv for Eleven Labs"
+          >
+            {exporting ? <Check size={16} /> : <FileDown size={16} className="text-emerald-500 group-hover:scale-110 transition-transform" />}
+            <span>{exporting ? 'Exported!' : 'Export CSV'}</span>
+          </button>
+
+          <button 
+            onClick={openRecordingsFolder}
+            className="flex items-center gap-2 px-3 py-2 bg-slate-800/50 hover:bg-slate-800 border border-slate-700 rounded-lg text-slate-300 hover:text-white transition-all text-sm group"
+            title="Open Recordings Folder"
+          >
+            <Folder size={16} className="text-blue-400 group-hover:scale-110 transition-transform" />
+            <span>Recordings</span>
+          </button>
+        </div>
       </header>
 
       {/* Sub-header Stats Bar */}

@@ -11,6 +11,11 @@ const GKL = require('node-global-key-listener')
 const GlobalKeyboardListener = GKL.GlobalKeyboardListener || GKL
 const dotenv = require('dotenv')
 const OpenAI = require('openai')
+const ffmpeg = require('fluent-ffmpeg')
+const ffmpegPath = require('ffmpeg-static')
+
+// Set ffmpeg path
+ffmpeg.setFfmpegPath(ffmpegPath)
 
 // Fix for GPU/Cache errors on Windows
 app.commandLine.appendSwitch('disable-gpu-cache')
@@ -138,11 +143,15 @@ app.whenReady().then(() => {
 
   // Register protocol to serve local audio files safely
   protocol.handle('atom', (request) => {
-    const url = new URL(request.url)
-    const filePath = decodeURIComponent(url.pathname.replace(/^\//, ''))
-    // For Windows, ensure path starts with drive letter correctly if it was stripped
-    const fullPath = filePath.includes(':') ? filePath : filePath.replace(/^([a-zA-Z])/, '$1:')
-    return net.fetch('file:///' + fullPath)
+    const url = request.url.replace('atom://', '')
+    // On Windows, the path might look like /C:/Users/...
+    // On Mac/Linux, it might look like /Users/...
+    const decodedPath = decodeURIComponent(url)
+    const normalizedPath = decodedPath.startsWith('/') && decodedPath[2] === ':' 
+      ? decodedPath.slice(1) 
+      : decodedPath
+    
+    return net.fetch('file:///' + normalizedPath)
   })
 
   app.on('activate', function () {
@@ -254,27 +263,38 @@ ipcMain.handle('transcribe-audio', async (_, buffer: Buffer) => {
     const tempFile = path.join(app.getPath('temp'), `vtalk_${Date.now()}.webm`)
     fs.writeFileSync(tempFile, Buffer.from(buffer))
 
-    const response = await openai.audio.transcriptions.create({
+    // Start transcription (keep it fast by sending the webm)
+    const transcriptionPromise = openai.audio.transcriptions.create({
       file: fs.createReadStream(tempFile),
       model: 'whisper-1'
     })
 
-    // Create recordings directory if it doesn't exist
+    // Create recordings directory
     const recordingsDir = path.join(app.getPath('userData'), 'recordings')
     if (!fs.existsSync(recordingsDir)) {
       fs.mkdirSync(recordingsDir, { recursive: true })
     }
 
-    // Save permanent copy of audio
     const timestamp = Date.now()
-    const permanentFile = path.join(recordingsDir, `recording_${timestamp}.webm`)
-    fs.copyFileSync(tempFile, permanentFile)
+    const permanentFile = path.join(recordingsDir, `recording_${timestamp}.wav`)
 
-    // In a real app, you'd use ffmpeg here to convert to .wav if needed
-    // For now we keep the .webm copy
-    
+    // Conversion happens in parallel with transcription
+    const conversionPromise = new Promise<string>((resolve, reject) => {
+      ffmpeg(tempFile)
+        .toFormat('wav')
+        .on('end', () => resolve(permanentFile))
+        .on('error', (err) => reject(err))
+        .save(permanentFile)
+    })
+
+    // Wait for both to finish (conversion is usually much faster than transcription)
+    const [response, audioPath] = await Promise.all([
+      transcriptionPromise,
+      conversionPromise
+    ])
+
     fs.unlinkSync(tempFile)
-    return { text: response.text, audioPath: permanentFile }
+    return { text: response.text, audioPath }
   } catch (error) {
     console.error('Transcription error:', error)
     if (Notification.isSupported()) {
@@ -306,6 +326,30 @@ ipcMain.on('open-recordings-folder', () => {
     fs.mkdirSync(recordingsDir, { recursive: true })
   }
   shell.openPath(recordingsDir)
+})
+
+ipcMain.handle('export-metadata', async () => {
+  try {
+    const transcripts = await getTranscripts()
+    const recordingsDir = path.join(app.getPath('userData'), 'recordings')
+    const csvPath = path.join(recordingsDir, 'metadata.csv')
+    
+    let content = 'audio_file,transcript\n'
+    for (const t of transcripts) {
+      if (t.audio_path && fs.existsSync(t.audio_path)) {
+        const fileName = path.basename(t.audio_path)
+        // Escape quotes for CSV
+        const escapedText = t.text.replace(/"/g, '""')
+        content += `${fileName},"${escapedText}"\n`
+      }
+    }
+    
+    fs.writeFileSync(csvPath, content)
+    return csvPath
+  } catch (error) {
+    console.error('Export failed:', error)
+    throw error
+  }
 })
 
 ipcMain.on('paste-text', async (_, text: string) => {
