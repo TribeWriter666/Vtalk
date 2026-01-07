@@ -1,6 +1,6 @@
 # Vtalk - AI-Powered Voice Dictation
 
-Vtalk is a lightweight, cross-platform voice dictation application built with Electron, React, and OpenAI Whisper. It's designed to be a local alternative to apps like Flow, allowing you to dictate text anywhere on your system with a simple hotkey.
+Vtalk is a lightweight, cross-platform voice dictation application built with Electron, React, and OpenAI Whisper. It's designed to be a local alternative to apps like whisper Flow, allowing you to dictate text anywhere on your system with a simple hotkey.
 
 **Built in under 1.5 hours using AI.**
 
@@ -65,7 +65,7 @@ To get this running in seconds: Just open this project in Cursor, then open the 
   npm run build:linux # For Linux
   ```
 
-## ⌨️ Shortcuts
+## Shortcuts
 
 | Action | Shortcut |
 |--------|----------|
@@ -76,4 +76,4 @@ To get this running in seconds: Just open this project in Cursor, then open the 
 
 ---
 
-*This project was developed for my own daily use as I've grown sick of having so many subscriptions. $30 here, $20 there, all of a sudden you're forking out hundreds each month on software. as a developer trying to find your feet this quickly becomes too much and you soon have to start choosing what tool you'll have to go without this month. So I built this for myself but decided to opensource so others can save some cash too. Hopefully this inspires you to "just build it yourself"! It's also a portfolio piece to demonstrate rapid prototyping, AI integration, and local audio processing in Electron.*
+*This project was developed for my own daily use as I've grown sick of having so many subscriptions. $30 here, $20 there, all of a sudden you're forking out hundreds each month on software. as a developer trying to find your feet this quickly becomes too much and you soon have to start choosing what tool you'll have to go without this month. So I built this for myself but decided to opensource so others can save some cash too. Hopefully this inspires you to "just build it yourself"!*
