@@ -1,14 +1,22 @@
 appId: com.vtalk.app
 productName: Vtalk
+copyright: Copyright © 2026 Vtalk
 directories:
   output: dist
   buildResources: build
 files:
   - out/**/*
 win:
+  icon: icon.png
   target:
     - nsis
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  shortcutName: Vtalk
 mac:
+  icon: icon.png
   target:
     - dmg
 linux:

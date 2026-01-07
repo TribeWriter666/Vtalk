@@ -13,6 +13,8 @@ const api = {
   getTranscripts: () => ipcRenderer.invoke('get-transcripts'),
   deleteTranscript: (id) => ipcRenderer.invoke('delete-transcript', id),
   checkOpenAIKey: () => ipcRenderer.invoke('check-openai-key'),
+  saveOpenAIKey: (key) => ipcRenderer.invoke('save-openai-key', key),
+  getOpenAIKey: () => ipcRenderer.invoke('get-openai-key'),
   openRecordingsFolder: () => ipcRenderer.send('open-recordings-folder'),
   exportMetadata: () => ipcRenderer.invoke('export-metadata')
 }

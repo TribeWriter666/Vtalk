@@ -5,7 +5,7 @@ import { optimizer, is } from '@electron-toolkit/utils'
 import fs from 'fs'
 import path from 'path'
 import { exec } from 'child_process'
-import { saveTranscript, getTranscripts, deleteTranscript } from './db'
+import { saveTranscript, getTranscripts, deleteTranscript, getSetting, setSetting } from './db'
 
 // Use require for native modules to avoid bundling issues
 const GKL = require('node-global-key-listener')
@@ -57,14 +57,61 @@ if (fs.existsSync(envPath)) {
   dotenv.config()
 }
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
-})
+let openai: any = null
+
+function updateOpenAIClient(apiKey: string) {
+  openai = new OpenAI({
+    apiKey: apiKey
+  })
+}
+
+// Initialize with key from DB or .env
+const storedKey = getSetting('openai_api_key') || process.env.OPENAI_API_KEY
+if (storedKey) {
+  updateOpenAIClient(storedKey)
+}
 
 let mainWindow: BrowserWindow | null = null
+let overlayWindow: BrowserWindow | null = null
 let tray: Tray | null = null
 let isQuitting = false
 const keyboardListener = new GlobalKeyboardListener()
+
+function createOverlayWindow(): void {
+  overlayWindow = new BrowserWindow({
+    width: 200,
+    height: 60,
+    show: false,
+    frame: false,
+    transparent: true,
+    alwaysOnTop: true,
+    resizable: false,
+    skipTaskbar: true,
+    focusable: false,
+    webPreferences: {
+      preload: path.join(__dirname, '..', 'preload', 'index.js'),
+      sandbox: false
+    }
+  })
+
+  // Center bottom of the screen
+  const { screen } = require('electron')
+  const primaryDisplay = screen.getPrimaryDisplay()
+  const { width, height } = primaryDisplay.workAreaSize
+  overlayWindow.setPosition(
+    Math.floor((width - 200) / 2),
+    Math.floor(height - 80)
+  )
+
+  // Make it ignore mouse events (click-through)
+  overlayWindow.setIgnoreMouseEvents(true)
+
+  if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
+    overlayWindow.loadURL(`${process.env['ELECTRON_RENDERER_URL']}/overlay.html`)
+  } else {
+    overlayWindow.loadFile(join(__dirname, '../renderer/overlay.html'))
+  }
+}
 
 function createWindow(): void {
   const preloadPath = path.join(__dirname, '..', 'preload', 'index.js')
@@ -154,6 +201,7 @@ app.whenReady().then(() => {
   })
 
   createWindow()
+  createOverlayWindow()
   createTray()
 
   // Register protocol to serve local audio files safely by ID
@@ -280,6 +328,11 @@ function startRecording() {
       console.error('Failed to send recording-status:', e)
     }
   }
+
+  if (overlayWindow && !overlayWindow.isDestroyed()) {
+    overlayWindow.show()
+    overlayWindow.webContents.send('recording-status', true)
+  }
   
   // if (Notification.isSupported()) {
   //   new Notification({ title: 'Vtalk', body: 'Recording started...' }).show()
@@ -297,6 +350,11 @@ function stopRecording() {
     } catch (e) {
       console.error('Failed to send recording-status:', e)
     }
+  }
+
+  if (overlayWindow && !overlayWindow.isDestroyed()) {
+    overlayWindow.hide()
+    overlayWindow.webContents.send('recording-status', false)
   }
 }
 
@@ -359,7 +417,18 @@ ipcMain.handle('delete-transcript', async (_, id) => {
 })
 
 ipcMain.handle('check-openai-key', async () => {
-  return !!process.env.OPENAI_API_KEY
+  const key = getSetting('openai_api_key') || process.env.OPENAI_API_KEY
+  return !!key
+})
+
+ipcMain.handle('save-openai-key', async (_, key: string) => {
+  setSetting('openai_api_key', key)
+  updateOpenAIClient(key)
+  return true
+})
+
+ipcMain.handle('get-openai-key', async () => {
+  return getSetting('openai_api_key') || process.env.OPENAI_API_KEY || ''
 })
 
 ipcMain.on('open-recordings-folder', () => {

@@ -16,6 +16,13 @@ db.exec(`
   )
 `)
 
+db.exec(`
+  CREATE TABLE IF NOT EXISTS settings (
+    key TEXT PRIMARY KEY,
+    value TEXT
+  )
+`)
+
 // Handle migration for existing databases missing audio_path
 try {
   db.exec('ALTER TABLE transcripts ADD COLUMN audio_path TEXT')
@@ -41,5 +48,16 @@ export function getTranscripts() {
 export function deleteTranscript(id: number) {
   const stmt = db.prepare('DELETE FROM transcripts WHERE id = ?')
   return stmt.run(id)
+}
+
+export function getSetting(key: string) {
+  const stmt = db.prepare('SELECT value FROM settings WHERE key = ?')
+  const row = stmt.get(key)
+  return row ? row.value : null
+}
+
+export function setSetting(key: string, value: string) {
+  const stmt = db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)')
+  return stmt.run(key, value)
 }
 
