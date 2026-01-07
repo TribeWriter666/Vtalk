@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useRecorder } from './hooks/useRecorder'
-import { Mic, MicOff, Copy, Trash2, RotateCcw, BarChart3, Clock, Type, Check, Play, Pause, Folder, FileDown } from 'lucide-react'
+import { Mic, MicOff, Copy, Trash2, RotateCcw, BarChart3, Clock, Type, Check, Play, Pause, Folder, FileDown, Settings, X } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
@@ -28,6 +28,7 @@ export default function App() {
   const [copiedId, setCopiedId] = useState<number | null>(null)
   const [playingId, setPlayingId] = useState<number | null>(null)
   const [exporting, setExporting] = useState(false)
+  const [showSettings, setShowSettings] = useState(false)
   const audioRef = useRef<HTMLAudioElement | null>(null)
 
   useEffect(() => {
@@ -226,28 +227,86 @@ export default function App() {
 
         <div className="flex items-center gap-2">
           <button 
-            onClick={handleExport}
-            disabled={exporting}
-            className={cn(
-              "flex items-center gap-2 px-3 py-2 bg-slate-800/50 hover:bg-slate-800 border border-slate-700 rounded-lg transition-all text-sm group",
-              exporting ? "text-emerald-400 border-emerald-500/50" : "text-slate-300 hover:text-white"
-            )}
-            title="Export metadata.csv for Eleven Labs"
+            onClick={() => setShowSettings(true)}
+            className="p-2 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition-colors"
+            title="Settings"
           >
-            {exporting ? <Check size={16} /> : <FileDown size={16} className="text-emerald-500 group-hover:scale-110 transition-transform" />}
-            <span>{exporting ? 'Exported!' : 'Export CSV'}</span>
-          </button>
-
-          <button 
-            onClick={openRecordingsFolder}
-            className="flex items-center gap-2 px-3 py-2 bg-slate-800/50 hover:bg-slate-800 border border-slate-700 rounded-lg text-slate-300 hover:text-white transition-all text-sm group"
-            title="Open Recordings Folder"
-          >
-            <Folder size={16} className="text-blue-400 group-hover:scale-110 transition-transform" />
-            <span>Recordings</span>
+            <Settings size={20} />
           </button>
         </div>
       </header>
+
+      {/* Settings Modal */}
+      <AnimatePresence>
+        {showSettings && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex flex-col p-6"
+          >
+            <div className="flex justify-between items-center mb-8">
+              <h2 className="text-xl font-bold flex items-center gap-2">
+                <Settings className="text-blue-400" /> Settings
+              </h2>
+              <button 
+                onClick={() => setShowSettings(false)}
+                className="p-2 hover:bg-slate-800 rounded-full text-slate-400 hover:text-white transition-colors"
+              >
+                <X size={24} />
+              </button>
+            </div>
+
+            <div className="space-y-6">
+              <section className="space-y-3">
+                <h3 className="text-sm font-medium text-slate-400 uppercase tracking-widest">Voice Training Data</h3>
+                <div className="grid grid-cols-2 gap-3">
+                  <button 
+                    onClick={handleExport}
+                    disabled={exporting}
+                    className={cn(
+                      "flex flex-col items-center justify-center gap-3 p-4 bg-slate-900 border border-slate-800 rounded-xl transition-all group",
+                      exporting ? "border-emerald-500/50 bg-emerald-500/5" : "hover:border-slate-700 hover:bg-slate-800/50"
+                    )}
+                  >
+                    {exporting ? <Check className="text-emerald-400" /> : <FileDown className="text-emerald-500 group-hover:scale-110 transition-transform" />}
+                    <div className="text-center">
+                      <div className="text-sm font-medium text-slate-200">Export CSV</div>
+                      <div className="text-[10px] text-slate-500">For Eleven Labs</div>
+                    </div>
+                  </button>
+
+                  <button 
+                    onClick={openRecordingsFolder}
+                    className="flex flex-col items-center justify-center gap-3 p-4 bg-slate-900 border border-slate-800 rounded-xl hover:border-slate-700 hover:bg-slate-800/50 transition-all group"
+                  >
+                    <Folder className="text-blue-400 group-hover:scale-110 transition-transform" />
+                    <div className="text-center">
+                      <div className="text-sm font-medium text-slate-200">Open Folder</div>
+                      <div className="text-[10px] text-slate-500">All WAV recordings</div>
+                    </div>
+                  </button>
+                </div>
+              </section>
+
+              <section className="space-y-3">
+                <h3 className="text-sm font-medium text-slate-400 uppercase tracking-widest">Account</h3>
+                <div className="p-4 bg-slate-900 border border-slate-800 rounded-xl">
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-sm text-slate-300">OpenAI API Key</span>
+                    <span className="text-[10px] bg-emerald-500/20 text-emerald-400 px-1.5 py-0.5 rounded uppercase font-bold tracking-tighter">Connected</span>
+                  </div>
+                  <div className="text-[10px] text-slate-500">Key is managed via your .env file</div>
+                </div>
+              </section>
+            </div>
+
+            <div className="mt-auto pt-6 text-center">
+              <p className="text-[10px] text-slate-600">Vtalk v1.0.0 • Developed with AI</p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Sub-header Stats Bar */}
       <div className="flex items-center justify-around px-6 py-3 bg-slate-900/40 border-b border-slate-800/60 shadow-inner">

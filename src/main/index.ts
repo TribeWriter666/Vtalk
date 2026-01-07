@@ -144,15 +144,13 @@ app.whenReady().then(() => {
   // Register protocol to serve local audio files safely
   protocol.handle('atom', (request) => {
     try {
-      const url = new URL(request.url)
-      // On Windows, the path might look like /C:/Users/...
-      // On Mac/Linux, it might look like /Users/...
-      let decodedPath = decodeURIComponent(url.pathname)
-      if (process.platform === 'win32' && decodedPath.startsWith('/')) {
-        decodedPath = decodedPath.slice(1)
-      }
+      const urlString = request.url.replace('atom://me/', '')
+      const decodedPath = decodeURIComponent(urlString)
       
-      return net.fetch('file:///' + decodedPath)
+      // On Windows, if we have a path like C:/Users, we need file:///C:/Users
+      // net.fetch expects a proper file URL
+      const fileUrl = 'file:///' + decodedPath.replace(/\\/g, '/')
+      return net.fetch(fileUrl)
     } catch (e) {
       console.error('Protocol error:', e)
       return new Response(null, { status: 400 })
