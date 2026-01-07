@@ -137,7 +137,7 @@ export default function App() {
     }
 
     // Use the transcript ID to fetch the audio via the atom protocol
-    const audio = new Audio(`atom://${id}`)
+    const audio = new Audio(`atom://audio/${id}`)
     audioRef.current = audio
     audio.onerror = (e) => {
       console.error('Audio error details:', audio.error)

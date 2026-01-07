@@ -160,27 +160,35 @@ app.whenReady().then(() => {
   protocol.handle('atom', async (request) => {
     try {
       const url = new URL(request.url)
-      const id = parseInt(url.hostname)
+      // If URL is atom://audio/123, hostname is 'audio', pathname is '/123'
+      const id = parseInt(url.pathname.replace(/^\//, ''))
       
-      if (isNaN(id)) return new Response(null, { status: 400 })
+      if (isNaN(id)) {
+        console.error('Invalid ID in protocol request:', request.url)
+        return new Response(null, { status: 400 })
+      }
 
       const transcripts = await getTranscripts()
       const transcript = transcripts.find(t => t.id === id)
       
-      if (!transcript || !transcript.audio_path || !fs.existsSync(transcript.audio_path)) {
+      if (!transcript || !transcript.audio_path) {
+        console.error('Transcript or audio path not found for ID:', id)
         return new Response(null, { status: 404 })
       }
 
-      const filePath = transcript.audio_path
-      const stats = fs.statSync(filePath)
-      const contentType = filePath.endsWith('.wav') ? 'audio/wav' : 'audio/webm'
-      
-      return new Response(fs.createReadStream(filePath) as any, {
-        headers: {
-          'Content-Type': contentType,
-          'Content-Length': stats.size.toString(),
-          'Accept-Ranges': 'bytes'
-        }
+      if (!fs.existsSync(transcript.audio_path)) {
+        console.error('Audio file does not exist on disk:', transcript.audio_path)
+        return new Response(null, { status: 404 })
+      }
+
+      // Delegate to net.fetch with a file:// URL. 
+      // This is the most robust way as it handles Range headers, 
+      // streaming, and MIME types automatically.
+      const fileUrl = pathToFileURL(transcript.audio_path).toString()
+      return net.fetch(fileUrl, {
+        bypassCustomProtocolHandlers: true,
+        method: request.method,
+        headers: request.headers
       })
     } catch (e) {
       console.error('Protocol error:', e)
