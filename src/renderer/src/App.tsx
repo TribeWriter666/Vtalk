@@ -29,6 +29,8 @@ export default function App() {
   const [playingId, setPlayingId] = useState<number | null>(null)
   const [exporting, setExporting] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
+  const [showSetup, setShowSetup] = useState(false)
+  const [apiKey, setApiKey] = useState('')
   const audioRef = useRef<HTMLAudioElement | null>(null)
 
   useEffect(() => {
@@ -42,7 +44,11 @@ export default function App() {
       // @ts-ignore
       const hasKey = await window.api.checkOpenAIKey()
       if (!hasKey) {
-        setError('OpenAI API Key not found. Please check your .env file.')
+        setShowSetup(true)
+      } else {
+        // @ts-ignore
+        const currentKey = await window.api.getOpenAIKey()
+        setApiKey(currentKey)
       }
     }
 
@@ -51,6 +57,13 @@ export default function App() {
 
     const handleFinished = async (e: any) => {
       const { buffer, duration } = e.detail
+      
+      // Ignore very short recordings (less than 0.5 seconds)
+      if (duration < 0.5) {
+        console.log('Recording too short, ignoring:', duration)
+        return
+      }
+
       setLastAudio({ buffer, duration })
       await handleTranscription(buffer, duration)
     }
@@ -100,7 +113,11 @@ export default function App() {
     } catch (error) {
       console.error('Transcription failed:', error)
       setTranscripts(prev => prev.map(t => 
-        t.id === tempId ? { ...t, text: 'Failed to transcribe', status: 'error' } : t
+        t.id === tempId ? { 
+          ...t, 
+          text: error.message?.includes('too short') ? 'Recording too short' : 'Failed to transcribe', 
+          status: 'error' 
+        } : t
       ))
     } finally {
       setIsTranscribing(false)
@@ -194,6 +211,18 @@ export default function App() {
     })
   }
 
+  const saveApiKey = async (key: string) => {
+    if (!key.trim().startsWith('sk-')) {
+      setError('Invalid API Key format. It should start with "sk-"')
+      return
+    }
+    // @ts-ignore
+    await window.api.saveOpenAIKey(key.trim())
+    setApiKey(key.trim())
+    setShowSetup(false)
+    setError(null)
+  }
+
   if (!window.api && !error) {
     return (
       <div className="h-screen flex items-center justify-center bg-slate-950 text-slate-400 p-10 text-center">
@@ -206,7 +235,61 @@ export default function App() {
   }
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden">
+    <div className="flex flex-col h-screen overflow-hidden relative">
+      {/* Setup Overlay */}
+      <AnimatePresence>
+        {showSetup && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 z-[100] bg-slate-950 flex items-center justify-center p-6"
+          >
+            <div className="max-w-md w-full space-y-8">
+              <div className="text-center space-y-2">
+                <div className="inline-flex p-4 rounded-3xl bg-blue-500/10 text-blue-500 mb-4">
+                  <Mic size={48} />
+                </div>
+                <h1 className="text-3xl font-bold tracking-tight text-white">Welcome to Vtalk</h1>
+                <p className="text-slate-400">To get started, we need your OpenAI API Key for the Whisper transcription engine.</p>
+              </div>
+
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider ml-1">
+                    OpenAI API Key
+                  </label>
+                  <input 
+                    type="password"
+                    placeholder="sk-..."
+                    value={apiKey}
+                    onChange={(e) => setApiKey(e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all"
+                  />
+                </div>
+
+                <button 
+                  onClick={() => saveApiKey(apiKey)}
+                  className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-blue-500/20 active:scale-[0.98]"
+                >
+                  Start Using Vtalk
+                </button>
+
+                <div className="pt-4 border-t border-slate-800/50 text-center">
+                  <a 
+                    href="https://www.youtube.com/watch?v=eqOfr4AgLk8" 
+                    target="_blank"
+                    className="text-xs text-blue-400 hover:text-blue-300 transition-colors flex items-center justify-center gap-1.5"
+                  >
+                    Need help getting an API key? Watch this tutorial →
+                  </a>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {error && (
         <div className="bg-red-600 text-white p-2 text-center text-sm">
           {error}
@@ -295,12 +378,29 @@ export default function App() {
 
               <section className="space-y-3">
                 <h3 className="text-sm font-medium text-slate-400 uppercase tracking-widest">Account</h3>
-                <div className="p-4 bg-slate-900 border border-slate-800 rounded-xl">
-                  <div className="flex justify-between items-center mb-1">
-                    <span className="text-sm text-slate-300">OpenAI API Key</span>
-                    <span className="text-[10px] bg-emerald-500/20 text-emerald-400 px-1.5 py-0.5 rounded uppercase font-bold tracking-tighter">Connected</span>
+                <div className="p-4 bg-slate-900 border border-slate-800 rounded-xl space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-slate-300 font-medium">OpenAI API Key</span>
+                    <span className={cn(
+                      "text-[10px] px-1.5 py-0.5 rounded uppercase font-bold tracking-tighter",
+                      apiKey ? "bg-emerald-500/20 text-emerald-400" : "bg-red-500/20 text-red-400"
+                    )}>
+                      {apiKey ? 'Connected' : 'Missing'}
+                    </span>
                   </div>
-                  <div className="text-[10px] text-slate-500">Key is managed via your .env file</div>
+                  <div className="relative">
+                    <input 
+                      type="password"
+                      value={apiKey}
+                      onChange={(e) => setApiKey(e.target.value)}
+                      onBlur={() => saveApiKey(apiKey)}
+                      placeholder="sk-..."
+                      className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-300 focus:outline-none focus:border-blue-500 transition-all"
+                    />
+                  </div>
+                  <p className="text-[10px] text-slate-500 leading-relaxed">
+                    Your key is stored locally and used only for Whisper transcription.
+                  </p>
                 </div>
               </section>
             </div>
