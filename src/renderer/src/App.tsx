@@ -247,15 +247,8 @@ export default function App() {
     window.api.openRecordingsFolder()
   }
 
-  const calculateAverageWpm = () => {
-    if (transcripts.length === 0) return 0
-    const valid = transcripts.filter(t => t.wpm > 0)
-    if (valid.length === 0) return 0
-    return Math.round(valid.reduce((acc, t) => acc + t.wpm, 0) / valid.length)
-  }
-
   const calculateTotalDuration = () => {
-    const totalSeconds = transcripts.reduce((acc, t) => acc + t.duration, 0)
+    const totalSeconds = stats.totalDuration
     if (totalSeconds < 60) return `${totalSeconds.toFixed(0)}s`
     const mins = Math.floor(totalSeconds / 60)
     const secs = Math.round(totalSeconds % 60)
