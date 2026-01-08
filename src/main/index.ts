@@ -1,5 +1,4 @@
 import { app, shell, BrowserWindow, ipcMain, clipboard, Tray, Menu, nativeImage, Notification, protocol, net } from 'electron'
-import { join } from 'path'
 import { pathToFileURL } from 'url'
 import { optimizer, is } from '@electron-toolkit/utils'
 import fs from 'fs'
