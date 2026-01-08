@@ -78,7 +78,6 @@ if (storedKey) {
 let mainWindow: BrowserWindow | null = null
 let overlayWindow: BrowserWindow | null = null
 let tray: Tray | null = null
-let isQuitting = false
 const keyboardListener = new GlobalKeyboardListener()
 
 function createOverlayWindow(): void {
@@ -160,7 +159,6 @@ function createWindow(): void {
   })
 
   mainWindow.on('close', () => {
-    isQuitting = true
     app.quit()
   })
 
@@ -186,7 +184,6 @@ function createTray() {
     { label: 'Show App', click: () => mainWindow?.show() },
     { type: 'separator' },
     { label: 'Quit', click: () => {
-      isQuitting = true
       app.quit()
     }}
   ])
