@@ -6,6 +6,10 @@ directories:
   buildResources: build
 files:
   - out/**/*
+asar: true
+asarUnpack:
+  - "**/node_modules/ffmpeg-static/**/*"
+  - "**/node_modules/node-global-key-listener/**/*"
 win:
   icon: icon.png
   target:

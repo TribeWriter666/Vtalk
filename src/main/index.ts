@@ -13,9 +13,13 @@ const GlobalKeyboardListener = GKL.GlobalKeyboardListener || GKL
 const dotenv = require('dotenv')
 const OpenAI = require('openai')
 const ffmpeg = require('fluent-ffmpeg')
-const ffmpegPath = require('ffmpeg-static')
+let ffmpegPath = require('ffmpeg-static')
 
-// Set ffmpeg path
+// Fix for ASAR unpacking: ffmpeg cannot run from within the ASAR archive
+if (app.isPackaged) {
+  ffmpegPath = ffmpegPath.replace('app.asar', 'app.asar.unpacked')
+}
+
 ffmpeg.setFfmpegPath(ffmpegPath)
 
 // Register atom protocol as privileged to allow streaming/seeking
@@ -359,6 +363,16 @@ function stopRecording() {
 
 ipcMain.handle('transcribe-audio', async (_, buffer: Buffer) => {
   try {
+    // Ensure OpenAI is initialized
+    if (!openai) {
+      const key = getSetting('openai_api_key') || process.env.OPENAI_API_KEY
+      if (key) {
+        updateOpenAIClient(key)
+      } else {
+        throw new Error('OpenAI API Key is missing. Please go to Settings to add your key.')
+      }
+    }
+
     const tempFile = path.join(app.getPath('temp'), `vtalk_${Date.now()}.webm`)
     fs.writeFileSync(tempFile, Buffer.from(buffer))
 
@@ -388,7 +402,10 @@ ipcMain.handle('transcribe-audio', async (_, buffer: Buffer) => {
           .audioBitrate('192k')
           .audioChannels(1) // Force mono
           .on('end', () => resolve(permanentFile))
-          .on('error', (err) => reject(err))
+          .on('error', (err) => {
+            console.error('FFmpeg conversion error:', err)
+            reject(new Error('Failed to process audio. Please check if FFmpeg is installed or working correctly.'))
+          })
           .save(permanentFile)
       })
 
@@ -405,10 +422,17 @@ ipcMain.handle('transcribe-audio', async (_, buffer: Buffer) => {
       fs.unlinkSync(tempFile)
       return { text: response.text, audioPath: null }
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('Transcription error:', error)
+    
+    // Provide user-friendly error messages
+    let message = 'Transcription failed.'
+    if (error.message?.includes('API Key')) message = error.message
+    if (error.message?.includes('FFmpeg')) message = error.message
+    if (error.status === 401) message = 'Invalid OpenAI API Key. Please check your settings.'
+
     if (Notification.isSupported()) {
-      new Notification({ title: 'Vtalk', body: 'Transcription failed.' }).show()
+      new Notification({ title: 'Vtalk', body: message }).show()
     }
     throw error
   }
