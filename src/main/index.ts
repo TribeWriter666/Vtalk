@@ -159,12 +159,9 @@ function createWindow(): void {
     console.warn('Window is unresponsive. It might be frozen.')
   })
 
-  mainWindow.on('close', (event) => {
-    if (!isQuitting) {
-      event.preventDefault()
-      mainWindow?.hide()
-    }
-    return false
+  mainWindow.on('close', () => {
+    isQuitting = true
+    app.quit()
   })
 
   mainWindow.webContents.setWindowOpenHandler((details) => {
@@ -258,7 +255,7 @@ app.whenReady().then(() => {
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
-    // Keep running in tray
+    app.quit()
   }
 })
 
