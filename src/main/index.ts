@@ -119,8 +119,16 @@ function createOverlayWindow(): void {
   } else {
     // In production, the file is in out/renderer/overlay.html
     const overlayPath = path.resolve(__dirname, '..', 'renderer', 'overlay.html')
-    overlayWindow.loadFile(overlayPath)
+    console.log('Production Overlay Path:', overlayPath)
+    overlayWindow.loadFile(overlayPath).catch(err => {
+      console.error('Failed to load overlay file:', err)
+    })
   }
+
+  // Debug: show the window immediately if devtools is open
+  overlayWindow.webContents.on('did-finish-load', () => {
+    console.log('Overlay loaded successfully')
+  })
 }
 
 function createWindow(): void {
@@ -183,6 +191,10 @@ function createTray() {
   tray = new Tray(icon)
   const contextMenu = Menu.buildFromTemplate([
     { label: 'Show App', click: () => mainWindow?.show() },
+    { label: 'Open DevTools', click: () => {
+      mainWindow?.webContents.openDevTools({ mode: 'detach' })
+      overlayWindow?.webContents.openDevTools({ mode: 'detach' })
+    }},
     { type: 'separator' },
     { label: 'Quit', click: () => {
       app.quit()

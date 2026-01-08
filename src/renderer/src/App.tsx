@@ -168,9 +168,11 @@ export default function App() {
             window.api.getStats()
           ])
 
-          setTranscripts(freshTranscripts)
+          console.log('UI Refreshing with', freshTranscripts.length, 'items')
+          setTranscripts([...freshTranscripts]) // Create a new array reference to ensure React re-renders
           setStats(statsData)
           setOffset(freshTranscripts.length)
+          setHasMore(freshTranscripts.length === PAGE_SIZE)
 
           // Auto-paste
           // @ts-ignore
