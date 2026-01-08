@@ -37,12 +37,23 @@ export function saveTranscript(text: string, duration: number, audioPath?: strin
   
   const stmt = db.prepare('INSERT INTO transcripts (text, duration, wpm, audio_path) VALUES (?, ?, ?, ?)')
   const info = stmt.run(text, duration, wpm, audioPath)
-  return { id: info.lastInsertRowid, text, duration, wpm, audio_path: audioPath, created_at: new Date().toISOString() }
+  return { 
+    id: Number(info.lastInsertRowid), 
+    text, 
+    duration, 
+    wpm, 
+    audio_path: audioPath, 
+    created_at: new Date().toISOString() 
+  }
 }
 
 export function getTranscripts(limit: number = 50, offset: number = 0) {
   const stmt = db.prepare('SELECT * FROM transcripts ORDER BY created_at DESC LIMIT ? OFFSET ?')
-  return stmt.all(limit, offset)
+  const rows = stmt.all(limit, offset)
+  return rows.map(row => ({
+    ...row,
+    id: Number(row.id)
+  }))
 }
 
 export function getAllTranscriptsIter() {
@@ -61,10 +72,10 @@ export function getStats() {
   `)
   const row = stmt.get()
   return {
-    totalCount: row.count || 0,
-    totalDuration: row.total_duration || 0,
-    avgWpm: Math.round(row.avg_wpm || 0),
-    totalWords: row.total_words || 0
+    totalCount: Number(row.count || 0),
+    totalDuration: Number(row.total_duration || 0),
+    avgWpm: Math.round(Number(row.avg_wpm || 0)),
+    totalWords: Number(row.total_words || 0)
   }
 }
 
