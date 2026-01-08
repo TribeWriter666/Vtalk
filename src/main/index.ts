@@ -21,7 +21,7 @@ if (app.isPackaged) {
 
 ffmpeg.setFfmpegPath(ffmpegPath)
 
-// Register atom protocol as privileged to allow streaming/seeking
+// Register atom protocol as privileged
 protocol.registerSchemesAsPrivileged([
   { 
     scheme: 'atom', 
@@ -30,7 +30,8 @@ protocol.registerSchemesAsPrivileged([
       secure: true, 
       supportFetchAPI: true, 
       stream: true,
-      bypassCSP: true 
+      bypassCSP: true,
+      corsEnabled: true
     } 
   }
 ])
@@ -117,11 +118,9 @@ function createOverlayWindow(): void {
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
     overlayWindow.loadURL(`${process.env['ELECTRON_RENDERER_URL']}/overlay.html`)
   } else {
-    // In production, the file is in out/renderer/overlay.html
-    const overlayPath = path.resolve(__dirname, '..', 'renderer', 'overlay.html')
-    console.log('Production Overlay Path:', overlayPath)
-    overlayWindow.loadFile(overlayPath).catch(err => {
-      console.error('Failed to load overlay file:', err)
+    // In production, use our custom atom protocol to bypass "Not allowed to load local resource" errors
+    overlayWindow.loadURL('atom://app/overlay.html').catch(err => {
+      console.error('Failed to load overlay via protocol:', err)
     })
   }
 
@@ -218,40 +217,42 @@ app.whenReady().then(() => {
   createOverlayWindow()
   createTray()
 
-  // Register protocol to serve local audio files safely by ID
+  // Register protocol to serve local files and audio safely
   protocol.handle('atom', async (request) => {
     try {
       const url = new URL(request.url)
-      // If URL is atom://audio/123, hostname is 'audio', pathname is '/123'
-      const id = parseInt(url.pathname.replace(/^\//, ''))
       
-      if (isNaN(id)) {
-        console.error('Invalid ID in protocol request:', request.url)
-        return new Response(null, { status: 400 })
-      }
+      // Handle audio requests: atom://audio/123
+      if (url.hostname === 'audio') {
+        const id = parseInt(url.pathname.replace(/^\//, ''))
+        if (isNaN(id)) return new Response(null, { status: 400 })
 
-      const transcripts = await getTranscripts()
-      const transcript = transcripts.find(t => t.id === id)
+        const transcripts = await getTranscripts()
+        const transcript = transcripts.find(t => t.id === id)
+        
+        if (!transcript || !transcript.audio_path) {
+          return new Response(null, { status: 404 })
+        }
+
+        const fileUrl = pathToFileURL(transcript.audio_path).toString()
+        return net.fetch(fileUrl, {
+          bypassCustomProtocolHandlers: true,
+          method: request.method,
+          headers: request.headers
+        })
+      } 
       
-      if (!transcript || !transcript.audio_path) {
-        console.error('Transcript or audio path not found for ID:', id)
-        return new Response(null, { status: 404 })
+      // Handle app files: atom://app/overlay.html
+      if (url.hostname === 'app') {
+        const relativePath = url.pathname.replace(/^\//, '')
+        const filePath = path.resolve(__dirname, '..', 'renderer', relativePath)
+        
+        return net.fetch(pathToFileURL(filePath).toString(), {
+          bypassCustomProtocolHandlers: true
+        })
       }
 
-      if (!fs.existsSync(transcript.audio_path)) {
-        console.error('Audio file does not exist on disk:', transcript.audio_path)
-        return new Response(null, { status: 404 })
-      }
-
-      // Delegate to net.fetch with a file:// URL. 
-      // This is the most robust way as it handles Range headers, 
-      // streaming, and MIME types automatically.
-      const fileUrl = pathToFileURL(transcript.audio_path).toString()
-      return net.fetch(fileUrl, {
-        bypassCustomProtocolHandlers: true,
-        method: request.method,
-        headers: request.headers
-      })
+      return new Response(null, { status: 404 })
     } catch (e) {
       console.error('Protocol error:', e)
       return new Response(null, { status: 500 })
