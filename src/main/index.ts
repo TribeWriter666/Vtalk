@@ -81,6 +81,7 @@ let tray: Tray | null = null
 const keyboardListener = new GlobalKeyboardListener()
 
 function createOverlayWindow(): void {
+  const overlayPreload = path.resolve(__dirname, '..', 'preload', 'index.js')
   overlayWindow = new BrowserWindow({
     width: 200,
     height: 60,
@@ -92,8 +93,10 @@ function createOverlayWindow(): void {
     skipTaskbar: true,
     focusable: false,
     webPreferences: {
-      preload: path.join(__dirname, '..', 'preload', 'index.js'),
-      sandbox: false
+      preload: overlayPreload,
+      sandbox: false,
+      contextIsolation: true,
+      nodeIntegration: false
     }
   })
 
@@ -115,12 +118,14 @@ function createOverlayWindow(): void {
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
     overlayWindow.loadURL(`${process.env['ELECTRON_RENDERER_URL']}/overlay.html`)
   } else {
-    overlayWindow.loadFile(join(__dirname, '../renderer/overlay.html'))
+    // In production, the file is in out/renderer/overlay.html
+    const overlayPath = path.resolve(__dirname, '..', 'renderer', 'overlay.html')
+    overlayWindow.loadFile(overlayPath)
   }
 }
 
 function createWindow(): void {
-  const preloadPath = path.join(__dirname, '..', 'preload', 'index.js')
+  const preloadPath = path.resolve(__dirname, '..', 'preload', 'index.js')
   console.log('Preload path:', preloadPath)
 
   mainWindow = new BrowserWindow({
@@ -140,9 +145,6 @@ function createWindow(): void {
 
   mainWindow.on('ready-to-show', () => {
     mainWindow?.show()
-    // if (is.dev) {
-    //   mainWindow?.webContents.openDevTools({ mode: 'detach' })
-    // }
   })
 
   // Handle renderer crashes
@@ -171,7 +173,7 @@ function createWindow(): void {
     console.log('Loading renderer from URL:', process.env['ELECTRON_RENDERER_URL'])
     mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])
   } else {
-    const indexPath = join(__dirname, '../renderer/index.html')
+    const indexPath = path.resolve(__dirname, '..', 'renderer', 'index.html')
     console.log('Loading renderer from file:', indexPath)
     mainWindow.loadFile(indexPath)
   }

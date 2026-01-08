@@ -148,30 +148,34 @@ export default function App() {
       status: 'transcribing'
     }, ...prev])
 
-    try {
-      // @ts-ignore
-      const result = await window.api.transcribeAudio(buffer)
-      const { text, audioPath } = typeof result === 'string' ? { text: result, audioPath: null } : result
-      
-      // Save to DB
-      // @ts-ignore
-      const saved = await window.api.saveTranscript({ text, duration, audioPath })
-      
-      // Update the placeholder with real data
-      setTranscripts(prev => [
-        saved,
-        ...prev.filter(t => t.id !== tempId)
-      ])
+        try {
+          // @ts-ignore
+          const result = await window.api.transcribeAudio(buffer)
+          const { text, audioPath } = typeof result === 'string' ? { text: result, audioPath: null } : result
+          
+          if (!text) throw new Error('No text returned from transcription')
 
-      // Refresh stats
-      // @ts-ignore
-      const statsData = await window.api.getStats()
-      setStats(statsData)
+          // Save to DB
+          // @ts-ignore
+          const saved = await window.api.saveTranscript({ text, duration, audioPath })
+          
+          // Force a fresh fetch of stats and transcripts to ensure UI is in sync
+          // @ts-ignore
+          const [freshTranscripts, statsData] = await Promise.all([
+            // @ts-ignore
+            window.api.getTranscripts(PAGE_SIZE, 0),
+            // @ts-ignore
+            window.api.getStats()
+          ])
 
-      // Auto-paste
-      // @ts-ignore
-      window.api.pasteText(text)
-    } catch (error: any) {
+          setTranscripts(freshTranscripts)
+          setStats(statsData)
+          setOffset(freshTranscripts.length)
+
+          // Auto-paste
+          // @ts-ignore
+          window.api.pasteText(text)
+        } catch (error: any) {
       console.error('Transcription failed:', error)
       // @ts-ignore
       window.api.hideOverlay()
