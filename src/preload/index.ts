@@ -7,6 +7,11 @@ const api = {
     ipcRenderer.on('recording-status', listener)
     return () => ipcRenderer.removeListener('recording-status', listener)
   },
+  onWindowShown: (callback) => {
+    const listener = () => callback()
+    ipcRenderer.on('window-shown', listener)
+    return () => ipcRenderer.removeListener('window-shown', listener)
+  },
   transcribeAudio: (buffer) => ipcRenderer.invoke('transcribe-audio', buffer),
   pasteText: (text) => ipcRenderer.send('paste-text', text),
   saveTranscript: (transcript) => ipcRenderer.invoke('save-transcript', transcript),
@@ -28,7 +33,6 @@ try {
   contextBridge.exposeInMainWorld('api', api)
   // Also expose a simple flag to check if it's working
   contextBridge.exposeInMainWorld('isElectron', true)
-  console.log('Preload script executed successfully')
 } catch (error) {
   console.error('Preload script failed to expose API:', error)
 }

@@ -1,4 +1,5 @@
 import { app, shell, BrowserWindow, ipcMain, clipboard, Tray, Menu, nativeImage, Notification, protocol, net } from 'electron'
+import { join } from 'path'
 import { pathToFileURL } from 'url'
 import { optimizer, is } from '@electron-toolkit/utils'
 import fs from 'fs'
@@ -14,14 +15,13 @@ const OpenAI = require('openai')
 const ffmpeg = require('fluent-ffmpeg')
 let ffmpegPath = require('ffmpeg-static')
 
-// Fix for ASAR unpacking: ffmpeg cannot run from within the ASAR archive
-if (app.isPackaged) {
+// Set ffmpeg path with asar support
+if (typeof ffmpegPath === 'string') {
   ffmpegPath = ffmpegPath.replace('app.asar', 'app.asar.unpacked')
 }
-
 ffmpeg.setFfmpegPath(ffmpegPath)
 
-// Register atom protocol as privileged
+// Register atom protocol as privileged to allow streaming/seeking
 protocol.registerSchemesAsPrivileged([
   { 
     scheme: 'atom', 
@@ -30,8 +30,7 @@ protocol.registerSchemesAsPrivileged([
       secure: true, 
       supportFetchAPI: true, 
       stream: true,
-      bypassCSP: true,
-      corsEnabled: true
+      bypassCSP: true 
     } 
   }
 ])
@@ -54,34 +53,46 @@ if (!instanceLock) {
 }
 
 // Load .env from project root
-const envPath = path.join(process.cwd(), '.env')
-if (fs.existsSync(envPath)) {
-  dotenv.config({ path: envPath })
-} else {
-  dotenv.config()
+try {
+  const envPath = is.dev 
+    ? path.join(process.cwd(), '.env')
+    : path.join(process.resourcesPath, '.env')
+    
+  if (fs.existsSync(envPath)) {
+    dotenv.config({ path: envPath })
+  } else {
+    dotenv.config()
+  }
+} catch (e) {
+  console.error('Error loading .env:', e)
 }
 
 let openai: any = null
 
 function updateOpenAIClient(apiKey: string) {
+  if (!apiKey) return
   openai = new OpenAI({
     apiKey: apiKey
   })
 }
 
 // Initialize with key from DB or .env
-const storedKey = getSetting('openai_api_key') || process.env.OPENAI_API_KEY
-if (storedKey) {
-  updateOpenAIClient(storedKey)
+try {
+  const storedKey = getSetting('openai_api_key') || process.env.OPENAI_API_KEY
+  if (storedKey) {
+    updateOpenAIClient(storedKey)
+  }
+} catch (e) {
+  console.error('Failed to initialize OpenAI client:', e)
 }
 
 let mainWindow: BrowserWindow | null = null
 let overlayWindow: BrowserWindow | null = null
 let tray: Tray | null = null
+let isQuitting = false
 const keyboardListener = new GlobalKeyboardListener()
 
 function createOverlayWindow(): void {
-  const overlayPreload = path.resolve(__dirname, '..', 'preload', 'index.js')
   overlayWindow = new BrowserWindow({
     width: 200,
     height: 60,
@@ -93,10 +104,9 @@ function createOverlayWindow(): void {
     skipTaskbar: true,
     focusable: false,
     webPreferences: {
-      preload: overlayPreload,
+      preload: path.join(__dirname, '..', 'preload', 'index.js'),
       sandbox: false,
-      contextIsolation: true,
-      nodeIntegration: false
+      backgroundThrottling: false
     }
   })
 
@@ -118,21 +128,12 @@ function createOverlayWindow(): void {
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
     overlayWindow.loadURL(`${process.env['ELECTRON_RENDERER_URL']}/overlay.html`)
   } else {
-    // In production, use our custom atom protocol to bypass "Not allowed to load local resource" errors
-    overlayWindow.loadURL('atom://app/overlay.html').catch(err => {
-      console.error('Failed to load overlay via protocol:', err)
-    })
+    overlayWindow.loadFile(join(__dirname, '../renderer/overlay.html'))
   }
-
-  // Debug: show the window immediately if devtools is open
-  overlayWindow.webContents.on('did-finish-load', () => {
-    console.log('Overlay loaded successfully')
-  })
 }
 
 function createWindow(): void {
-  const preloadPath = path.resolve(__dirname, '..', 'preload', 'index.js')
-  console.log('Preload path:', preloadPath)
+  const preloadPath = path.join(__dirname, '..', 'preload', 'index.js')
 
   mainWindow = new BrowserWindow({
     width: 450,
@@ -145,12 +146,17 @@ function createWindow(): void {
       preload: preloadPath,
       sandbox: false,
       contextIsolation: true,
-      nodeIntegration: false
+      nodeIntegration: false,
+      backgroundThrottling: false
     }
   })
 
   mainWindow.on('ready-to-show', () => {
     mainWindow?.show()
+  })
+
+  mainWindow.on('show', () => {
+    mainWindow?.webContents.send('window-shown')
   })
 
   // Handle renderer crashes
@@ -166,8 +172,11 @@ function createWindow(): void {
     console.warn('Window is unresponsive. It might be frozen.')
   })
 
-  mainWindow.on('close', () => {
-    app.quit()
+  mainWindow.on('close', (e) => {
+    if (!isQuitting) {
+      e.preventDefault()
+      mainWindow?.hide()
+    }
   })
 
   mainWindow.webContents.setWindowOpenHandler((details) => {
@@ -176,31 +185,45 @@ function createWindow(): void {
   })
 
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
-    console.log('Loading renderer from URL:', process.env['ELECTRON_RENDERER_URL'])
     mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])
   } else {
-    const indexPath = path.resolve(__dirname, '..', 'renderer', 'index.html')
-    console.log('Loading renderer from file:', indexPath)
+    const indexPath = join(__dirname, '../renderer/index.html')
     mainWindow.loadFile(indexPath)
   }
 }
 
 function createTray() {
-  const icon = nativeImage.createEmpty() // You should add a real icon here
-  tray = new Tray(icon)
+  let iconPath
+  if (is.dev) {
+    iconPath = path.join(__dirname, '../../icon.png')
+  } else {
+    // In production, icon is usually in the resources folder
+    iconPath = path.join(process.resourcesPath, 'icon.png')
+    if (!fs.existsSync(iconPath)) {
+      // Fallback to app path if not found
+      iconPath = path.join(app.getAppPath(), 'out/renderer/icon.png')
+    }
+  }
+
+  const trayIcon = fs.existsSync(iconPath) 
+    ? nativeImage.createFromPath(iconPath).resize({ width: 16, height: 16 })
+    : nativeImage.createEmpty()
+
+  tray = new Tray(trayIcon)
   const contextMenu = Menu.buildFromTemplate([
     { label: 'Show App', click: () => mainWindow?.show() },
-    { label: 'Open DevTools', click: () => {
-      mainWindow?.webContents.openDevTools({ mode: 'detach' })
-      overlayWindow?.webContents.openDevTools({ mode: 'detach' })
-    }},
     { type: 'separator' },
     { label: 'Quit', click: () => {
+      isQuitting = true
       app.quit()
     }}
   ])
   tray.setToolTip('Vtalk - Voice Dictation')
   tray.setContextMenu(contextMenu)
+  
+  tray.on('double-click', () => {
+    mainWindow?.show()
+  })
 }
 
 app.whenReady().then(() => {
@@ -217,42 +240,40 @@ app.whenReady().then(() => {
   createOverlayWindow()
   createTray()
 
-  // Register protocol to serve local files and audio safely
+  // Register protocol to serve local audio files safely by ID
   protocol.handle('atom', async (request) => {
     try {
       const url = new URL(request.url)
+      // If URL is atom://audio/123, hostname is 'audio', pathname is '/123'
+      const id = parseInt(url.pathname.replace(/^\//, ''))
       
-      // Handle audio requests: atom://audio/123
-      if (url.hostname === 'audio') {
-        const id = parseInt(url.pathname.replace(/^\//, ''))
-        if (isNaN(id)) return new Response(null, { status: 400 })
-
-        const transcripts = await getTranscripts()
-        const transcript = transcripts.find(t => t.id === id)
-        
-        if (!transcript || !transcript.audio_path) {
-          return new Response(null, { status: 404 })
-        }
-
-        const fileUrl = pathToFileURL(transcript.audio_path).toString()
-        return net.fetch(fileUrl, {
-          bypassCustomProtocolHandlers: true,
-          method: request.method,
-          headers: request.headers
-        })
-      } 
-      
-      // Handle app files: atom://app/overlay.html
-      if (url.hostname === 'app') {
-        const relativePath = url.pathname.replace(/^\//, '')
-        const filePath = path.resolve(__dirname, '..', 'renderer', relativePath)
-        
-        return net.fetch(pathToFileURL(filePath).toString(), {
-          bypassCustomProtocolHandlers: true
-        })
+      if (isNaN(id)) {
+        console.error('Invalid ID in protocol request:', request.url)
+        return new Response(null, { status: 400 })
       }
 
-      return new Response(null, { status: 404 })
+      const transcripts = await getTranscripts()
+      const transcript = transcripts.find(t => t.id === id)
+      
+      if (!transcript || !transcript.audio_path) {
+        console.error('Transcript or audio path not found for ID:', id)
+        return new Response(null, { status: 404 })
+      }
+
+      if (!fs.existsSync(transcript.audio_path)) {
+        console.error('Audio file does not exist on disk:', transcript.audio_path)
+        return new Response(null, { status: 404 })
+      }
+
+      // Delegate to net.fetch with a file:// URL. 
+      // This is the most robust way as it handles Range headers, 
+      // streaming, and MIME types automatically.
+      const fileUrl = pathToFileURL(transcript.audio_path).toString()
+      return net.fetch(fileUrl, {
+        bypassCustomProtocolHandlers: true,
+        method: request.method,
+        headers: request.headers
+      })
     } catch (e) {
       console.error('Protocol error:', e)
       return new Response(null, { status: 500 })
@@ -266,15 +287,20 @@ app.whenReady().then(() => {
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
-    app.quit()
+    // Keep running in tray
   }
 })
 
 app.on('will-quit', () => {
   // Clean up keyboard listener on quit
   if (keyboardListener) {
-    keyboardListener.kill()
+    try {
+      keyboardListener.kill()
+    } catch (e) {}
   }
+  
+  // Force exit to ensure no zombie processes
+  process.exit(0)
 })
 
 // --- Logic for Voice Dictation ---
@@ -371,18 +397,20 @@ function stopRecording() {
 
 ipcMain.handle('transcribe-audio', async (_, buffer: Buffer) => {
   try {
-    // Ensure OpenAI is initialized
-    if (!openai) {
-      const key = getSetting('openai_api_key') || process.env.OPENAI_API_KEY
-      if (key) {
-        updateOpenAIClient(key)
-      } else {
-        throw new Error('OpenAI API Key is missing. Please go to Settings to add your key.')
-      }
-    }
-
     const tempFile = path.join(app.getPath('temp'), `vtalk_${Date.now()}.webm`)
     fs.writeFileSync(tempFile, Buffer.from(buffer))
+
+    // Priority: 1. DB Setting, 2. Process Env
+    const storedKey = getSetting('openai_api_key')
+    const envKey = process.env.OPENAI_API_KEY
+    const apiKey = storedKey || envKey
+
+    if (!apiKey) {
+      throw new Error('No OpenAI API key found. Please check your settings.')
+    }
+
+    // Always ensure the client is fresh
+    updateOpenAIClient(apiKey)
 
     // Start transcription
     const transcriptionPromise = openai.audio.transcriptions.create({
@@ -402,17 +430,15 @@ ipcMain.handle('transcribe-audio', async (_, buffer: Buffer) => {
       const timestamp = Date.now()
       const permanentFile = path.join(recordingsDir, `recording_${timestamp}.mp3`)
 
-      // Conversion happens in parallel with transcription
-      // Using high quality MP3 (192k) and forcing mono (-ac 1)
       const conversionPromise = new Promise<string>((resolve, reject) => {
         ffmpeg(tempFile)
           .toFormat('mp3')
           .audioBitrate('192k')
-          .audioChannels(1) // Force mono
+          .audioChannels(1)
           .on('end', () => resolve(permanentFile))
           .on('error', (err) => {
-            console.error('FFmpeg conversion error:', err)
-            reject(new Error('Failed to process audio. Please check if FFmpeg is installed or working correctly.'))
+            console.error('FFmpeg error:', err)
+            reject(err)
           })
           .save(permanentFile)
       })
@@ -423,24 +449,20 @@ ipcMain.handle('transcribe-audio', async (_, buffer: Buffer) => {
       ])
       
       audioPath = pAudioPath
-      fs.unlinkSync(tempFile)
+      if (fs.existsSync(tempFile)) fs.unlinkSync(tempFile)
       return { text: response.text, audioPath }
     } else {
       const response = await transcriptionPromise
-      fs.unlinkSync(tempFile)
+      if (fs.existsSync(tempFile)) fs.unlinkSync(tempFile)
       return { text: response.text, audioPath: null }
     }
   } catch (error: any) {
-    console.error('Transcription error:', error)
-    
-    // Provide user-friendly error messages
-    let message = 'Transcription failed.'
-    if (error.message?.includes('API Key')) message = error.message
-    if (error.message?.includes('FFmpeg')) message = error.message
-    if (error.status === 401) message = 'Invalid OpenAI API Key. Please check your settings.'
-
+    console.error('Transcription error details:', error)
     if (Notification.isSupported()) {
-      new Notification({ title: 'Vtalk', body: message }).show()
+      new Notification({ 
+        title: 'Vtalk Error', 
+        body: error.message || 'Transcription failed.' 
+      }).show()
     }
     throw error
   }
@@ -543,13 +565,9 @@ ipcMain.on('paste-text', async (_, text: string) => {
 
   if (process.platform === 'win32') {
     const script = `
-      $def = '[DllImport("user32.dll")] public static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, uint dwExtraInfo);'
-      $type = Add-Type -MemberDefinition $def -Name "Win32Keyboard" -Namespace "Win32" -PassThru
-      Sleep -m 200
-      $type::keybd_event(0x11, 0, 0, 0)
-      $type::keybd_event(0x56, 0, 0, 0)
-      $type::keybd_event(0x56, 0, 2, 0)
-      $type::keybd_event(0x11, 0, 2, 0)
+      $wshell = New-Object -ComObject WScript.Shell;
+      Sleep -m 100;
+      $wshell.SendKeys('^v');
     `
     const tempScript = path.join(app.getPath('temp'), 'paste.ps1')
     fs.writeFileSync(tempScript, script)

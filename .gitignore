@@ -87,6 +87,9 @@ dist
 *.db
 *.db-journal
 
+# TypeScript incremental build cache
+*.tsbuildinfo
+
 # OS files
 .DS_Store
 Thumbs.db

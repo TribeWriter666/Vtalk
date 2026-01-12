@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRecorder } from './hooks/useRecorder'
 import { Mic, MicOff, Copy, Trash2, RotateCcw, BarChart3, Clock, Type, Check, Play, Pause, Folder, FileDown, Settings, X } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -42,26 +42,22 @@ export default function App() {
   const loadMoreRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
-    // @ts-ignore
     if (!window.api && !window.isElectron) {
       setError('Connection Error: The App UI cannot communicate with the background process.')
       return
     }
 
     const checkKey = async () => {
-      // @ts-ignore
       const hasKey = await window.api.checkOpenAIKey()
       if (!hasKey) {
         setShowSetup(true)
       } else {
-        // @ts-ignore
         const currentKey = await window.api.getOpenAIKey()
         setApiKey(currentKey)
       }
     }
 
     const loadSettings = async () => {
-      // @ts-ignore
       const savedSaveAudio = await window.api.getSetting('save_audio')
       if (savedSaveAudio !== null) {
         setSaveAudio(savedSaveAudio === 'true')
@@ -82,11 +78,20 @@ export default function App() {
       }
 
       setLastAudio({ buffer, duration })
-      await handleTranscription(buffer, duration)
+      // Use ref to always get the latest version of handleTranscription
+      await handleTranscriptionRef.current(buffer, duration)
     }
 
     window.addEventListener('recording-finished' as any, handleFinished)
-    return () => window.removeEventListener('recording-finished' as any, handleFinished)
+
+    const unlistenShown = window.api.onWindowShown(() => {
+      initialLoad()
+    })
+
+    return () => {
+      window.removeEventListener('recording-finished' as any, handleFinished)
+      if (unlistenShown) unlistenShown()
+    }
   }, [])
 
   // Infinite scroll observer
@@ -107,24 +112,23 @@ export default function App() {
     return () => observer.disconnect()
   }, [hasMore, loadingMore, offset, isTranscribing])
 
-  const initialLoad = async () => {
-    // @ts-ignore
+  const initialLoad = useCallback(async () => {
+    // If we're currently transcribing, don't overwrite the state as it might wipe the placeholder
+    if (isTranscribing) return
+
     const [data, statsData] = await Promise.all([
-      // @ts-ignore
       window.api.getTranscripts(PAGE_SIZE, 0),
-      // @ts-ignore
       window.api.getStats()
     ])
     setTranscripts(data)
     setStats(statsData)
     setOffset(data.length)
     setHasMore(data.length === PAGE_SIZE)
-  }
+  }, [isTranscribing])
 
   const loadMore = async () => {
     if (loadingMore || !hasMore) return
     setLoadingMore(true)
-    // @ts-ignore
     const data = await window.api.getTranscripts(PAGE_SIZE, offset)
     if (data.length > 0) {
       setTranscripts(prev => [...prev, ...data])
@@ -134,7 +138,7 @@ export default function App() {
     setLoadingMore(false)
   }
 
-  const handleTranscription = async (buffer: ArrayBuffer, duration: number) => {
+  const handleTranscription = useCallback(async (buffer: ArrayBuffer, duration: number) => {
     setIsTranscribing(true)
     const tempId = Date.now()
     
@@ -148,38 +152,30 @@ export default function App() {
       status: 'transcribing'
     }, ...prev])
 
-        try {
-          // @ts-ignore
-          const result = await window.api.transcribeAudio(buffer)
-          const { text, audioPath } = typeof result === 'string' ? { text: result, audioPath: null } : result
-          
-          if (!text) throw new Error('No text returned from transcription')
+    try {
+      const result = await window.api.transcribeAudio(buffer)
+      const { text, audioPath } = typeof result === 'string' ? { text: result, audioPath: null } : result
+      
+      // Save to DB
+      const saved = await window.api.saveTranscript({ text, duration, audioPath })
+      
+      // Update the placeholder with real data
+      setTranscripts(prev => {
+        // Remove the placeholder and add the real saved transcript
+        const filtered = prev.filter(t => t.id !== tempId)
+        // Check if it's already there (maybe from a parallel initialLoad)
+        if (filtered.some(t => t.id === saved.id)) return filtered
+        return [saved, ...filtered]
+      })
 
-          // Save to DB
-          // @ts-ignore
-          const saved = await window.api.saveTranscript({ text, duration, audioPath })
-          
-          // Force a fresh fetch of stats and transcripts to ensure UI is in sync
-          // @ts-ignore
-          const [freshTranscripts, statsData] = await Promise.all([
-            // @ts-ignore
-            window.api.getTranscripts(PAGE_SIZE, 0),
-            // @ts-ignore
-            window.api.getStats()
-          ])
+      // Refresh stats
+      const statsData = await window.api.getStats()
+      setStats(statsData)
 
-          console.log('UI Refreshing with', freshTranscripts.length, 'items')
-          setTranscripts([...freshTranscripts]) // Create a new array reference to ensure React re-renders
-          setStats(statsData)
-          setOffset(freshTranscripts.length)
-          setHasMore(freshTranscripts.length === PAGE_SIZE)
-
-          // Auto-paste
-          // @ts-ignore
-          window.api.pasteText(text)
-        } catch (error: any) {
+      // Auto-paste
+      window.api.pasteText(text)
+    } catch (error: any) {
       console.error('Transcription failed:', error)
-      // @ts-ignore
       window.api.hideOverlay()
       setTranscripts(prev => prev.map(t => 
         t.id === tempId ? { 
@@ -190,8 +186,18 @@ export default function App() {
       ))
     } finally {
       setIsTranscribing(false)
+      // Final sync check to ensure UI matches DB exactly
+      setTimeout(() => {
+        initialLoad()
+      }, 500)
     }
-  }
+  }, [initialLoad])
+  
+  // Keep a ref to the latest handleTranscription for event handlers
+  const handleTranscriptionRef = useRef(handleTranscription)
+  useEffect(() => {
+    handleTranscriptionRef.current = handleTranscription
+  }, [handleTranscription])
 
   const retryTranscription = async () => {
     if (lastAudio) {
@@ -200,11 +206,9 @@ export default function App() {
   }
 
   const deleteTranscript = async (id: number) => {
-    // @ts-ignore
     await window.api.deleteTranscript(id)
     setTranscripts(prev => prev.filter(t => t.id !== id))
     // Refresh stats
-    // @ts-ignore
     const statsData = await window.api.getStats()
     setStats(statsData)
   }
@@ -244,7 +248,6 @@ export default function App() {
   const handleExport = async () => {
     setExporting(true)
     try {
-      // @ts-ignore
       await window.api.exportMetadata()
       // Show success briefly
       setTimeout(() => setExporting(false), 2000)
@@ -255,7 +258,6 @@ export default function App() {
   }
 
   const openRecordingsFolder = () => {
-    // @ts-ignore
     window.api.openRecordingsFolder()
   }
 
@@ -282,7 +284,6 @@ export default function App() {
       setError('Invalid API Key format. It should start with "sk-"')
       return
     }
-    // @ts-ignore
     await window.api.saveOpenAIKey(key.trim())
     setApiKey(key.trim())
     setShowSetup(false)
@@ -292,7 +293,6 @@ export default function App() {
   const toggleSaveAudio = async () => {
     const newValue = !saveAudio
     setSaveAudio(newValue)
-    // @ts-ignore
     await window.api.setSetting('save_audio', String(newValue))
   }
 
@@ -466,34 +466,34 @@ export default function App() {
                     </div>
                   </section>
 
-              <section className="space-y-3">
-                <h3 className="text-sm font-medium text-slate-400 uppercase tracking-widest">Account</h3>
-                <div className="p-4 bg-slate-900 border border-slate-800 rounded-xl space-y-3">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-slate-300 font-medium">OpenAI API Key</span>
-                    <span className={cn(
-                      "text-[10px] px-1.5 py-0.5 rounded uppercase font-bold tracking-tighter",
-                      apiKey ? "bg-emerald-500/20 text-emerald-400" : "bg-red-500/20 text-red-400"
-                    )}>
-                      {apiKey ? 'Connected' : 'Missing'}
-                    </span>
-                  </div>
-                  <div className="relative">
-                    <input 
-                      type="password"
-                      value={apiKey}
-                      onChange={(e) => setApiKey(e.target.value)}
-                      onBlur={() => saveApiKey(apiKey)}
-                      placeholder="sk-..."
-                      className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-300 focus:outline-none focus:border-blue-500 transition-all"
-                    />
-                  </div>
-                  <p className="text-[10px] text-slate-500 leading-relaxed">
-                    Your key is stored locally and used only for Whisper transcription.
-                  </p>
+                  <section className="space-y-3">
+                    <h3 className="text-sm font-medium text-slate-400 uppercase tracking-widest">Account</h3>
+                    <div className="p-4 bg-slate-900 border border-slate-800 rounded-xl space-y-3">
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-slate-300 font-medium">OpenAI API Key</span>
+                        <span className={cn(
+                          "text-[10px] px-1.5 py-0.5 rounded uppercase font-bold tracking-tighter",
+                          apiKey ? "bg-emerald-500/20 text-emerald-400" : "bg-red-500/20 text-red-400"
+                        )}>
+                          {apiKey ? 'Connected' : 'Missing'}
+                        </span>
+                      </div>
+                      <div className="relative">
+                        <input 
+                          type="password"
+                          value={apiKey}
+                          onChange={(e) => setApiKey(e.target.value)}
+                          onBlur={() => saveApiKey(apiKey)}
+                          placeholder="sk-..."
+                          className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-300 focus:outline-none focus:border-blue-500 transition-all"
+                        />
+                      </div>
+                      <p className="text-[10px] text-slate-500 leading-relaxed">
+                        Your key is stored locally and used only for Whisper transcription.
+                      </p>
+                    </div>
+                  </section>
                 </div>
-              </section>
-            </div>
 
             <div className="mt-auto pt-6 text-center">
               <p className="text-[10px] text-slate-600">Vtalk v1.0.0 • Developed with AI</p>

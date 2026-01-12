@@ -1,27 +1,16 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 
 export function useRecorder() {
   const [isRecording, setIsRecording] = useState(false)
   const mediaRecorder = useRef<MediaRecorder | null>(null)
   const chunks = useRef<Blob[]>([])
   const startTime = useRef<number>(0)
+  const streamRef = useRef<MediaStream | null>(null)
 
-  useEffect(() => {
-    if (!window.api) return
-    
-    // @ts-ignore (electron api)
-    window.api.onRecordingStatus((status: boolean) => {
-      if (status) {
-        start()
-      } else {
-        stop()
-      }
-    })
-  }, [])
-
-  const start = async () => {
+  const start = useCallback(async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      streamRef.current = stream
       mediaRecorder.current = new MediaRecorder(stream)
       chunks.current = []
       startTime.current = Date.now()
@@ -43,7 +32,10 @@ export function useRecorder() {
         }))
         
         // Stop all tracks to release microphone
-        stream.getTracks().forEach(track => track.stop())
+        if (streamRef.current) {
+          streamRef.current.getTracks().forEach(track => track.stop())
+          streamRef.current = null
+        }
       }
 
       mediaRecorder.current.start()
@@ -51,14 +43,30 @@ export function useRecorder() {
     } catch (err) {
       console.error('Error starting recording:', err)
     }
-  }
+  }, [])
 
-  const stop = () => {
+  const stop = useCallback(() => {
     if (mediaRecorder.current && mediaRecorder.current.state === 'recording') {
       mediaRecorder.current.stop()
       setIsRecording(false)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    if (!window.api) return
+    
+    const cleanup = window.api.onRecordingStatus((status: any) => {
+      if (status === 'recording' || status === true) {
+        start()
+      } else if (status === false) {
+        stop()
+      }
+    })
+
+    return () => {
+      if (cleanup) cleanup()
+    }
+  }, [start, stop])
 
   return { isRecording }
 }
