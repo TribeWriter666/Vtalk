@@ -13,6 +13,7 @@ Vtalk is designed to be the ultimate productivity companion—allowing you to di
 - **Intelligent Formatting:** AI automatically structures your dictation with paragraphs, bullet points, and logical flow—not just a block of text.
 - **Real-Time Overlay:** A floating, non-intrusive status bar shows you exactly when you're Recording, Processing, or Refining with AI.
 - **Transcription History:** Keep track of your past dictations with WPM (Words Per Minute), duration, and audio playback.
+- **Adaptive Themes:** Full support for **Light Mode**, **Dark Mode**, and **System Detection**. Toggle your preference in the settings.
 - **Privacy First:** Your transcription history and API settings are stored locally on your machine using SQLite.
 
 ## Tech Stack

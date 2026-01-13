@@ -22,5 +22,6 @@ interface Window {
     minimizeWindow: () => void
     maximizeWindow: () => void
     closeWindow: () => void
+    setTitleBarColor: (color: string) => void
   }
 }

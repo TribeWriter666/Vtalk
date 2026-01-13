@@ -647,6 +647,15 @@ ipcMain.on('window-close', () => {
   }
 })
 
+ipcMain.on('set-titlebar-color', (_, color: string) => {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    // This only affects windows with titleBarStyle: 'hidden' and titleBarOverlay: true
+    // Since we are now using frame: false, this won't do anything for the frame,
+    // but it's good practice if we ever switch back or for macOS.
+    // For our current frame: false, we handle colors in the renderer.
+  }
+})
+
 ipcMain.on('paste-text', async (_, text: string) => {
   const originalClipboard = clipboard.readText()
   clipboard.writeText(text)

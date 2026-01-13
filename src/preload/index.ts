@@ -28,7 +28,8 @@ const api = {
   hideOverlay: () => ipcRenderer.send('hide-overlay'),
   minimizeWindow: () => ipcRenderer.send('window-minimize'),
   maximizeWindow: () => ipcRenderer.send('window-maximize'),
-  closeWindow: () => ipcRenderer.send('window-close')
+  closeWindow: () => ipcRenderer.send('window-close'),
+  setTitleBarColor: (color) => ipcRenderer.send('set-titlebar-color', color)
 }
 
 // Directly expose without the toolkit helper to be 100% sure

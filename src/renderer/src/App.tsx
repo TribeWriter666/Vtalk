@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRecorder } from './hooks/useRecorder'
-import { Mic, MicOff, Copy, Trash2, RotateCcw, BarChart3, Clock, Type, Check, Play, Pause, Folder, FileDown, Settings, X, Info, MessageSquare, Minus, Square } from 'lucide-react'
+import { Mic, MicOff, Copy, Trash2, RotateCcw, BarChart3, Clock, Type, Check, Play, Pause, Folder, FileDown, Settings, X, Info, MessageSquare, Minus, Square, Sun, Moon, Monitor } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
@@ -42,6 +42,7 @@ export default function App() {
   const [cleanupStyle, setCleanupStyle] = useState('natural')
   const [customPrompt, setCustomPrompt] = useState('')
   const [isMaximized, setIsMaximized] = useState(false)
+  const [theme, setTheme] = useState<'light' | 'dark' | 'system'>('system')
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const loadMoreRef = useRef<HTMLDivElement | null>(null)
 
@@ -80,6 +81,11 @@ export default function App() {
       const savedCustomPrompt = await window.api.getSetting('cleanup_custom_prompt')
       if (savedCustomPrompt !== null) {
         setCustomPrompt(savedCustomPrompt)
+      }
+
+      const savedTheme = await window.api.getSetting('theme')
+      if (savedTheme !== null) {
+        setTheme(savedTheme as any)
       }
     }
 
@@ -218,6 +224,36 @@ export default function App() {
     handleTranscriptionRef.current = handleTranscription
   }, [handleTranscription])
 
+  useEffect(() => {
+    const root = window.document.documentElement
+    
+    const applyTheme = (themeValue: string) => {
+      let actualTheme = themeValue
+      if (themeValue === 'system') {
+        actualTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+      }
+      
+      root.classList.remove('light', 'dark')
+      root.classList.add(actualTheme)
+      
+      // Update Electron titlebar overlay color
+      if (window.api && (window.api as any).setTitleBarColor) {
+        (window.api as any).setTitleBarColor(actualTheme === 'dark' ? '#020617' : '#ffffff')
+      }
+    }
+
+    applyTheme(theme)
+
+    if (theme === 'system') {
+      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
+      const handleChange = () => applyTheme('system')
+      mediaQuery.addEventListener('change', handleChange)
+      return () => mediaQuery.removeEventListener('change', handleChange)
+    }
+    
+    return undefined
+  }, [theme])
+
   const retryTranscription = async () => {
     if (lastAudio) {
       await handleTranscription(lastAudio.buffer, lastAudio.duration)
@@ -338,6 +374,11 @@ export default function App() {
     await window.api.setSetting('cleanup_custom_prompt', prompt)
   }
 
+  const updateTheme = async (newTheme: 'light' | 'dark' | 'system') => {
+    setTheme(newTheme)
+    await window.api.setSetting('theme', newTheme)
+  }
+
   if (!window.api && !error) {
     return (
       <div className="h-screen flex items-center justify-center bg-slate-950 text-slate-400 p-10 text-center">
@@ -350,7 +391,7 @@ export default function App() {
   }
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden relative">
+    <div className="flex flex-col h-screen overflow-hidden relative bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-300">
       {/* Setup Overlay */}
       <AnimatePresence>
         {showSetup && (
@@ -358,15 +399,15 @@ export default function App() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="absolute inset-0 z-[100] bg-slate-950 flex items-center justify-center p-6"
+            className="absolute inset-0 z-[100] bg-white dark:bg-slate-950 flex items-center justify-center p-6"
           >
             <div className="max-w-md w-full space-y-8">
               <div className="text-center space-y-2">
                 <div className="inline-flex p-4 rounded-3xl bg-blue-500/10 text-blue-500 mb-4">
                   <Mic size={48} />
                 </div>
-                <h1 className="text-3xl font-bold tracking-tight text-white">Welcome to Vtalk</h1>
-                <p className="text-slate-400">To get started, we need your OpenAI API Key for the Whisper transcription engine.</p>
+                <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">Welcome to Vtalk</h1>
+                <p className="text-slate-500 dark:text-slate-400 font-medium">To get started, we need your OpenAI API Key for the Whisper transcription engine.</p>
               </div>
 
               <div className="space-y-4">
@@ -379,7 +420,7 @@ export default function App() {
                     placeholder="sk-..."
                     value={apiKey}
                     onChange={(e) => setApiKey(e.target.value)}
-                    className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all"
+                    className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all"
                   />
                 </div>
 
@@ -411,7 +452,7 @@ export default function App() {
         </div>
       )}
       {/* Header */}
-      <header className="flex items-center justify-between px-6 py-4 bg-slate-900/80 border-b border-slate-800 backdrop-blur-sm z-10 select-none" style={{ WebkitAppRegion: 'drag' } as any}>
+      <header className="flex items-center justify-between px-6 py-4 bg-white/80 dark:bg-slate-900/80 border-b border-slate-200 dark:border-slate-800 backdrop-blur-sm z-10 select-none" style={{ WebkitAppRegion: 'drag' } as any}>
         <div className="flex items-center gap-4">
           <div className={cn(
             "p-2.5 rounded-xl transition-all shadow-lg",
@@ -420,8 +461,8 @@ export default function App() {
             {isRecording ? <Mic size={28} /> : <MicOff size={28} />}
           </div>
           <div>
-            <h1 className="text-2xl font-black tracking-tight bg-gradient-to-br from-white to-slate-400 bg-clip-text text-transparent">Vtalk</h1>
-            <p className="text-[11px] text-slate-500 font-bold uppercase tracking-wider text-nowrap">
+            <h1 className="text-2xl font-black tracking-tight bg-gradient-to-br from-slate-900 to-slate-500 dark:from-white dark:to-slate-400 bg-clip-text text-transparent">Vtalk</h1>
+            <p className="text-[11px] text-slate-500 dark:text-slate-500 font-bold uppercase tracking-wider text-nowrap">
               {isRecording ? 'Live Recording' : 'Voice Dictation'}
             </p>
           </div>
@@ -431,38 +472,38 @@ export default function App() {
           <a 
             href="https://smallsites.com/contact" 
             target="_blank"
-            className="p-2 hover:bg-slate-800 rounded-lg text-slate-500 hover:text-blue-400 transition-all group"
+            className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-500 hover:text-blue-500 dark:hover:text-blue-400 transition-all group"
             title="Send Feedback"
           >
             <MessageSquare size={18} className="group-hover:scale-110 transition-transform" />
           </a>
           <button 
             onClick={() => setShowSettings(true)}
-            className="p-2 hover:bg-slate-800 rounded-lg text-slate-500 hover:text-white transition-all group"
+            className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-500 hover:text-slate-900 dark:hover:text-white transition-all group"
             title="Settings"
           >
             <Settings size={18} className="group-hover:rotate-45 transition-transform" />
           </button>
           
-          <div className="w-px h-4 bg-slate-800 mx-1" />
+          <div className="w-px h-4 bg-slate-200 dark:bg-slate-800 mx-1" />
 
           <button 
             onClick={handleMinimize}
-            className="p-2 hover:bg-slate-800 rounded-lg text-slate-500 hover:text-white transition-all"
+            className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-500 hover:text-slate-900 dark:hover:text-white transition-all"
             title="Minimize"
           >
             <Minus size={18} />
           </button>
           <button 
             onClick={handleMaximize}
-            className="p-2 hover:bg-slate-800 rounded-lg text-slate-500 hover:text-white transition-all"
+            className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-500 hover:text-slate-900 dark:hover:text-white transition-all"
             title={isMaximized ? "Restore" : "Maximize"}
           >
             <Square size={14} className={isMaximized ? "scale-90" : ""} />
           </button>
           <button 
             onClick={handleClose}
-            className="p-2 hover:bg-red-500/20 rounded-lg text-slate-500 hover:text-red-500 transition-all"
+            className="p-2 hover:bg-red-500/10 dark:hover:bg-red-500/20 rounded-lg text-slate-500 hover:text-red-600 dark:hover:text-red-500 transition-all"
             title="Close to Tray"
           >
             <X size={18} />
@@ -477,16 +518,16 @@ export default function App() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="absolute inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex flex-col overflow-y-auto"
+            className="absolute inset-0 z-50 bg-white/80 dark:bg-slate-950/80 backdrop-blur-md flex flex-col overflow-y-auto"
           >
             <div className="max-w-2xl mx-auto w-full p-6 pb-20">
               <div className="flex justify-between items-center mb-8">
-                <h2 className="text-xl font-bold flex items-center gap-2">
-                  <Settings className="text-blue-400" /> Settings
+                <h2 className="text-xl font-bold flex items-center gap-2 text-slate-900 dark:text-white">
+                  <Settings className="text-blue-500 dark:text-blue-400" /> Settings
                 </h2>
                 <button 
                   onClick={() => setShowSettings(false)}
-                  className="p-2 hover:bg-slate-800 rounded-full text-slate-400 hover:text-white transition-colors"
+                  className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors"
                 >
                   <X size={24} />
                 </button>
@@ -494,12 +535,44 @@ export default function App() {
 
                   <div className="space-y-6">
                   <section className="space-y-4">
-                    <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-[0.15em] ml-1">Storage & AI Training</h3>
-                    <div className="p-5 bg-slate-900 border border-slate-800 rounded-2xl space-y-5 shadow-sm">
+                    <h3 className="text-sm font-semibold text-slate-400 dark:text-slate-400 uppercase tracking-[0.15em] ml-1">Appearance</h3>
+                    <div className="p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm">
+                      <div className="space-y-3">
+                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-0.5">
+                          Theme Mode
+                        </label>
+                        <div className="flex p-1 bg-slate-100 dark:bg-slate-950 rounded-xl gap-1">
+                          {[
+                            { id: 'light', label: 'Light', icon: Sun },
+                            { id: 'dark', label: 'Dark', icon: Moon },
+                            { id: 'system', label: 'System', icon: Monitor },
+                          ].map((t) => (
+                            <button
+                              key={t.id}
+                              onClick={() => updateTheme(t.id as any)}
+                              className={cn(
+                                "flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-bold transition-all",
+                                theme === t.id 
+                                  ? "bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm" 
+                                  : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
+                              )}
+                            >
+                              <t.icon size={16} />
+                              {t.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </section>
+
+                  <section className="space-y-4">
+                    <h3 className="text-sm font-semibold text-slate-400 dark:text-slate-400 uppercase tracking-[0.15em] ml-1">Storage & AI Training</h3>
+                    <div className="p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl space-y-5 shadow-sm">
                       <div className="flex items-center justify-between gap-4">
                         <div className="space-y-1">
-                          <div className="text-base font-semibold text-slate-200">Save Audio Recordings</div>
-                          <div className="text-xs text-slate-500 leading-relaxed max-w-[280px]">
+                          <div className="text-base font-semibold text-slate-800 dark:text-slate-200">Save Audio Recordings</div>
+                          <div className="text-xs text-slate-500 dark:text-slate-500 leading-relaxed max-w-[280px]">
                             Saves high-quality Mono MP3 files of your recordings. Perfect for Eleven Labs voice cloning.
                           </div>
                         </div>
@@ -507,11 +580,11 @@ export default function App() {
                           onClick={toggleSaveAudio}
                           className={cn(
                             "relative inline-flex h-7 w-12 items-center rounded-full transition-colors focus:outline-none shrink-0",
-                            saveAudio ? "bg-blue-600" : "bg-slate-700"
+                            saveAudio ? "bg-blue-600" : "bg-slate-200 dark:bg-slate-700"
                           )}
                         >
                           <span className={cn(
-                            "inline-block h-5 w-5 transform rounded-full bg-white transition-transform",
+                            "inline-block h-5 w-5 transform rounded-full bg-white transition-transform shadow-sm",
                             saveAudio ? "translate-x-6" : "translate-x-1"
                           )} />
                         </button>
@@ -521,14 +594,14 @@ export default function App() {
                         <motion.div 
                           initial={{ opacity: 0, y: -10 }}
                           animate={{ opacity: 1, y: 0 }}
-                          className="flex items-start gap-3 p-3 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-200/80"
+                          className="flex items-start gap-3 p-3 rounded-xl bg-blue-50 dark:bg-blue-500/10 border border-blue-100 dark:border-blue-500/20 text-blue-700 dark:text-blue-200/80"
                         >
                           <Info size={16} className="shrink-0 mt-0.5 text-blue-500" />
                           <div className="space-y-1.5">
                             <p className="text-[11px] font-medium leading-normal">
                               This feature allows you to gather the ~2.5 hours of audio material needed to create a high-quality personal voice clone (e.g., via Eleven Labs).
                             </p>
-                            <p className="text-[10px] text-blue-400/80 italic leading-normal">
+                            <p className="text-[10px] text-blue-600/80 dark:text-blue-400/80 italic leading-normal">
                               Note: Keeping this enabled will consume disk space over time as your recording library grows.
                             </p>
                           </div>
@@ -540,32 +613,32 @@ export default function App() {
                           onClick={handleExport}
                           disabled={exporting}
                           className={cn(
-                            "flex flex-col items-center justify-center gap-2.5 p-4 bg-slate-950 border border-slate-800 rounded-xl transition-all group",
-                            exporting ? "border-emerald-500/50 bg-emerald-500/5" : "hover:border-slate-700 hover:bg-slate-800"
+                            "flex flex-col items-center justify-center gap-2.5 p-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl transition-all group",
+                            exporting ? "border-emerald-500/50 bg-emerald-500/5" : "hover:border-slate-300 dark:hover:border-slate-700 hover:bg-white dark:hover:bg-slate-800 shadow-sm"
                           )}
                         >
-                          {exporting ? <Check size={20} className="text-emerald-400" /> : <FileDown size={20} className="text-emerald-500 group-hover:scale-110 transition-transform" />}
-                          <div className="text-xs font-semibold text-slate-300 text-center">Export CSV<br/><span className="text-[10px] opacity-50 font-medium">For Eleven Labs</span></div>
+                          {exporting ? <Check size={20} className="text-emerald-500" /> : <FileDown size={20} className="text-emerald-600 dark:text-emerald-500 group-hover:scale-110 transition-transform" />}
+                          <div className="text-xs font-semibold text-slate-700 dark:text-slate-300 text-center">Export CSV<br/><span className="text-[10px] opacity-50 font-medium">For Eleven Labs</span></div>
                         </button>
 
                         <button 
                           onClick={openRecordingsFolder}
-                          className="flex flex-col items-center justify-center gap-2.5 p-4 bg-slate-950 border border-slate-800 rounded-xl hover:border-slate-700 hover:bg-slate-800 transition-all group"
+                          className="flex flex-col items-center justify-center gap-2.5 p-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl hover:border-slate-300 dark:hover:border-slate-700 hover:bg-white dark:hover:bg-slate-800 transition-all group shadow-sm"
                         >
-                          <Folder size={20} className="text-blue-400 group-hover:scale-110 transition-transform" />
-                          <div className="text-xs font-semibold text-slate-300 text-center">Open Folder<br/><span className="text-[10px] opacity-50 font-medium">Manage Files</span></div>
+                          <Folder size={20} className="text-blue-600 dark:text-blue-400 group-hover:scale-110 transition-transform" />
+                          <div className="text-xs font-semibold text-slate-700 dark:text-slate-300 text-center">Open Folder<br/><span className="text-[10px] opacity-50 font-medium">Manage Files</span></div>
                         </button>
                       </div>
                     </div>
                   </section>
 
                   <section className="space-y-4">
-                    <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-[0.15em] ml-1">Dictation Cleanup</h3>
-                    <div className="p-5 bg-slate-900 border border-slate-800 rounded-2xl space-y-6 shadow-sm">
+                    <h3 className="text-sm font-semibold text-slate-400 dark:text-slate-400 uppercase tracking-[0.15em] ml-1">Dictation Cleanup</h3>
+                    <div className="p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl space-y-6 shadow-sm">
                       <div className="flex items-center justify-between gap-4">
                         <div className="space-y-1">
-                          <div className="text-base font-semibold text-slate-200">Enable AI Cleanup</div>
-                          <div className="text-xs text-slate-500 leading-relaxed max-w-[280px]">
+                          <div className="text-base font-semibold text-slate-800 dark:text-slate-200">Enable AI Cleanup</div>
+                          <div className="text-xs text-slate-500 dark:text-slate-500 leading-relaxed max-w-[280px]">
                             Automatically removes filler words and intelligently rewrites text.
                           </div>
                         </div>
@@ -573,11 +646,11 @@ export default function App() {
                           onClick={toggleCleanup}
                           className={cn(
                             "relative inline-flex h-7 w-12 items-center rounded-full transition-colors focus:outline-none shrink-0",
-                            cleanupEnabled ? "bg-blue-600" : "bg-slate-700"
+                            cleanupEnabled ? "bg-blue-600" : "bg-slate-200 dark:bg-slate-700"
                           )}
                         >
                           <span className={cn(
-                            "inline-block h-5 w-5 transform rounded-full bg-white transition-transform",
+                            "inline-block h-5 w-5 transform rounded-full bg-white transition-transform shadow-sm",
                             cleanupEnabled ? "translate-x-6" : "translate-x-1"
                           )} />
                         </button>
@@ -587,9 +660,9 @@ export default function App() {
                         <motion.div 
                           initial={{ opacity: 0, y: -10 }}
                           animate={{ opacity: 1, y: 0 }}
-                          className="flex items-start gap-3 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-200/80"
+                          className="flex items-start gap-3 p-3 rounded-xl bg-amber-50 dark:bg-amber-500/10 border border-amber-100 dark:border-amber-500/20 text-amber-700 dark:text-amber-200/80"
                         >
-                          <Info size={16} className="shrink-0 mt-0.5 text-amber-500" />
+                          <Info size={16} className="shrink-0 mt-0.5 text-amber-600 dark:text-amber-500" />
                           <p className="text-[11px] font-medium leading-normal">
                             Note: Enabling AI cleanup adds a second processing step after transcription, which will slightly increase the total processing time.
                           </p>
@@ -597,7 +670,7 @@ export default function App() {
                       )}
 
                       {cleanupEnabled && (
-                        <div className="space-y-5 pt-4 border-t border-slate-800/50">
+                        <div className="space-y-5 pt-4 border-t border-slate-100 dark:border-slate-800/50">
                           <div className="space-y-3">
                             <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-0.5">
                               Writing Style
@@ -613,18 +686,18 @@ export default function App() {
                                   key={style.id}
                                   onClick={() => updateCleanupStyle(style.id)}
                                   className={cn(
-                                    "p-3.5 rounded-xl border text-left transition-all relative overflow-hidden",
+                                    "p-3.5 rounded-xl border text-left transition-all relative overflow-hidden shadow-sm",
                                     cleanupStyle === style.id 
-                                      ? "bg-blue-500/10 border-blue-500/50 text-blue-400" 
-                                      : "bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700"
+                                      ? "bg-blue-50 dark:bg-blue-500/10 border-blue-200 dark:border-blue-500/50 text-blue-600 dark:text-blue-400" 
+                                      : "bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-700"
                                   )}
                                 >
                                   {style.speed && (
                                     <div className={cn(
                                       "absolute top-0 right-0 text-[10px] px-2 py-1 rounded-bl-lg font-bold uppercase tracking-tighter",
-                                      style.speed === '5.2' ? "bg-amber-500/20 text-amber-500" : 
-                                      style.speed === 'Mini' ? "bg-blue-500/20 text-blue-500" : 
-                                      "bg-emerald-500/20 text-emerald-500"
+                                      style.speed === '5.2' ? "bg-amber-100 dark:bg-amber-500/20 text-amber-600 dark:text-amber-500" : 
+                                      style.speed === 'Mini' ? "bg-blue-100 dark:bg-blue-500/20 text-blue-600 dark:text-blue-500" : 
+                                      "bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-500"
                                     )}>
                                       {style.speed}
                                     </div>
@@ -641,13 +714,13 @@ export default function App() {
                               <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
                                 Custom Instructions
                               </label>
-                              <span className="text-[10px] text-slate-600 font-bold uppercase tracking-widest">Optional</span>
+                              <span className="text-[10px] text-slate-400 dark:text-slate-600 font-bold uppercase tracking-widest">Optional</span>
                             </div>
                             <textarea 
                               value={customPrompt}
                               onChange={(e) => updateCustomPrompt(e.target.value)}
                               placeholder="e.g. 'Rewrite as a tweet' or 'Translate to German'"
-                              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm text-slate-300 focus:outline-none focus:border-blue-500 transition-all min-h-[100px] resize-none leading-relaxed"
+                              className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 text-sm text-slate-700 dark:text-slate-300 focus:outline-none focus:border-blue-500 transition-all min-h-[100px] resize-none leading-relaxed shadow-inner"
                             />
                           </div>
                         </div>
@@ -656,13 +729,13 @@ export default function App() {
                   </section>
 
                   <section className="space-y-4">
-                    <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-[0.15em] ml-1">Account</h3>
-                    <div className="p-5 bg-slate-900 border border-slate-800 rounded-2xl space-y-4 shadow-sm">
+                    <h3 className="text-sm font-semibold text-slate-400 dark:text-slate-400 uppercase tracking-[0.15em] ml-1">Account</h3>
+                    <div className="p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl space-y-4 shadow-sm">
                       <div className="flex justify-between items-center px-0.5">
-                        <span className="text-sm text-slate-300 font-bold uppercase tracking-wider">OpenAI API Key</span>
+                        <span className="text-sm text-slate-700 dark:text-slate-300 font-bold uppercase tracking-wider">OpenAI API Key</span>
                         <span className={cn(
                           "text-[10px] px-2 py-0.5 rounded-md uppercase font-black tracking-widest",
-                          apiKey ? "bg-emerald-500/20 text-emerald-400" : "bg-red-500/20 text-red-400"
+                          apiKey ? "bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400" : "bg-red-100 dark:bg-red-500/20 text-red-600 dark:text-red-400"
                         )}>
                           {apiKey ? 'Connected' : 'Missing'}
                         </span>
@@ -674,10 +747,10 @@ export default function App() {
                           onChange={(e) => setApiKey(e.target.value)}
                           onBlur={() => saveApiKey(apiKey)}
                           placeholder="sk-..."
-                          className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm text-slate-300 focus:outline-none focus:border-blue-500 transition-all font-mono"
+                          className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 text-sm text-slate-700 dark:text-slate-300 focus:outline-none focus:border-blue-500 transition-all font-mono shadow-inner"
                         />
                       </div>
-                      <p className="text-xs text-slate-500 leading-relaxed px-0.5 font-medium">
+                      <p className="text-xs text-slate-500 dark:text-slate-500 leading-relaxed px-0.5 font-medium">
                         Your key is stored locally and used only for Whisper and GPT-5 processing.
                       </p>
                     </div>
@@ -700,34 +773,34 @@ export default function App() {
       </AnimatePresence>
 
       {/* Sub-header Stats Bar */}
-      <div className="flex items-center justify-around px-6 py-4 bg-slate-900/40 border-b border-slate-800/60 shadow-inner">
+      <div className="flex items-center justify-around px-6 py-4 bg-white/40 dark:bg-slate-900/40 border-b border-slate-200 dark:border-slate-800/60 shadow-inner">
         <div className="flex flex-col items-center group cursor-default">
-          <div className="text-xs uppercase tracking-[0.2em] text-slate-500 flex items-center gap-1.5 mb-1.5 group-hover:text-blue-400 transition-colors">
+          <div className="text-xs uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500 flex items-center gap-1.5 mb-1.5 group-hover:text-blue-500 dark:group-hover:text-blue-400 transition-colors">
             <BarChart3 size={12} /> Avg. WPM
           </div>
-          <div className="text-xl font-mono font-bold text-blue-400/90 tabular-nums">
+          <div className="text-xl font-mono font-bold text-blue-600/90 dark:text-blue-400/90 tabular-nums">
             {stats.avgWpm}
           </div>
         </div>
         
-        <div className="w-px h-10 bg-slate-800/60" />
+        <div className="w-px h-10 bg-slate-200 dark:bg-slate-800/60" />
 
         <div className="flex flex-col items-center group cursor-default">
-          <div className="text-xs uppercase tracking-[0.2em] text-slate-500 flex items-center gap-1.5 mb-1.5 group-hover:text-emerald-400 transition-colors">
+          <div className="text-xs uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500 flex items-center gap-1.5 mb-1.5 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
             <Type size={12} /> Total Words
           </div>
-          <div className="text-xl font-mono font-bold text-emerald-400/90 tabular-nums">
+          <div className="text-xl font-mono font-bold text-emerald-600/90 dark:text-emerald-400/90 tabular-nums">
             {stats.totalWords}
           </div>
         </div>
 
-        <div className="w-px h-10 bg-slate-800/60" />
+        <div className="w-px h-10 bg-slate-200 dark:bg-slate-800/60" />
 
         <div className="flex flex-col items-center group cursor-default">
-          <div className="text-xs uppercase tracking-[0.2em] text-slate-500 flex items-center gap-1.5 mb-1.5 group-hover:text-amber-400 transition-colors">
+          <div className="text-xs uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500 flex items-center gap-1.5 mb-1.5 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">
             <Clock size={12} /> Total Time
           </div>
-          <div className="text-xl font-mono font-bold text-amber-400/90 tabular-nums">
+          <div className="text-xl font-mono font-bold text-amber-600/90 dark:text-amber-400/90 tabular-nums">
             {calculateTotalDuration()}
           </div>
         </div>
@@ -735,9 +808,9 @@ export default function App() {
 
       {/* Quick Tips / Help Bar */}
       {!isRecording && (
-        <div className="px-6 py-2 bg-slate-950 border-b border-slate-800/40 text-center">
+        <div className="px-6 py-2 bg-slate-100 dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800/40 text-center">
           <p className="text-[10px] text-slate-500 font-bold uppercase tracking-[0.2em]">
-            Hold <span className="text-blue-500/80">Ctrl + Alt</span> to Record • Quick Tap to <span className="text-emerald-500/80">Toggle ON/OFF</span>
+            Hold <span className="text-blue-600 dark:text-blue-500/80">Ctrl + Alt</span> to Record • Quick Tap to <span className="text-emerald-600 dark:text-emerald-500/80">Toggle ON/OFF</span>
           </p>
         </div>
       )}
@@ -751,7 +824,7 @@ export default function App() {
             exit={{ opacity: 0, scale: 0.9, y: 20 }}
             className="absolute bottom-10 left-1/2 -translate-x-1/2 z-50 pointer-events-none"
           >
-            <div className="bg-slate-900/90 border border-blue-500/50 backdrop-blur-md px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-4">
+            <div className="bg-white/90 dark:bg-slate-900/90 border border-blue-200 dark:border-blue-500/50 backdrop-blur-md px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-4">
               <div className="flex gap-1 h-6 items-center">
                 {[1, 2, 3, 4, 5].map((i) => (
                   <motion.div
@@ -769,7 +842,7 @@ export default function App() {
                   />
                 ))}
               </div>
-              <div className="text-blue-400 font-medium text-sm">Recording Voice...</div>
+              <div className="text-blue-600 dark:text-blue-400 font-bold text-sm">Recording Voice...</div>
             </div>
           </motion.div>
         )}
@@ -787,20 +860,20 @@ export default function App() {
                 exit={{ opacity: 0, x: -20 }}
                 className={cn(
                   "p-4 rounded-xl border transition-all",
-                  transcript.status === 'transcribing' ? "bg-slate-900/30 border-slate-800 border-dashed" :
-                  transcript.status === 'error' ? "bg-red-950/20 border-red-900/50" :
-                  "bg-slate-900/50 border-slate-800 hover:border-slate-700"
+                  transcript.status === 'transcribing' ? "bg-slate-100/50 dark:bg-slate-900/30 border-slate-300 dark:border-slate-800 border-dashed" :
+                  transcript.status === 'error' ? "bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-900/50" :
+                  "bg-white dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 shadow-sm dark:shadow-none"
                 )}
               >
                 <div className="flex justify-between items-start mb-3">
-                  <div className="flex items-center gap-4 text-sm text-slate-500 font-medium">
+                  <div className="flex items-center gap-4 text-sm text-slate-500 dark:text-slate-500 font-medium">
                     <span className="flex items-center gap-1.5">
                       <Clock size={14} /> {formatDateTime(transcript.created_at)}
                     </span>
                     <span className="flex items-center gap-1.5">
                       <BarChart3 size={14} /> {Math.round(transcript.wpm)} WPM
                     </span>
-                    <span className="flex items-center gap-1.5 text-slate-600">
+                    <span className="flex items-center gap-1.5 text-slate-400 dark:text-slate-600">
                       <Type size={14} /> {transcript.duration.toFixed(1)}s
                     </span>
                   </div>
@@ -808,7 +881,7 @@ export default function App() {
                     {transcript.audio_path && (
                       <button 
                         onClick={() => playAudio(transcript.audio_path!, transcript.id)}
-                        className="p-2 hover:bg-slate-800 rounded-md text-slate-400 hover:text-blue-400 transition-colors"
+                        className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md text-slate-400 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
                         title={playingId === transcript.id ? "Pause" : "Play Recording"}
                       >
                         {playingId === transcript.id ? <Pause size={18} /> : <Play size={18} />}
@@ -817,7 +890,7 @@ export default function App() {
                     {transcript.status === 'error' && (
                       <button 
                         onClick={retryTranscription}
-                        className="p-2 hover:bg-slate-800 rounded-md text-slate-400 hover:text-white transition-colors"
+                        className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md text-slate-400 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
                         title="Retry last transcription"
                       >
                         <RotateCcw size={18} />
@@ -825,14 +898,14 @@ export default function App() {
                     )}
                     <button 
                       onClick={() => copyToClipboard(transcript.text, transcript.id)}
-                      className="p-2 hover:bg-slate-800 rounded-md text-slate-400 hover:text-white transition-colors"
+                      className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md text-slate-400 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
                       title="Copy to clipboard"
                     >
-                      {copiedId === transcript.id ? <Check size={18} className="text-emerald-400" /> : <Copy size={18} />}
+                      {copiedId === transcript.id ? <Check size={18} className="text-emerald-600 dark:text-emerald-400" /> : <Copy size={18} />}
                     </button>
                     <button 
                       onClick={() => deleteTranscript(transcript.id)}
-                      className="p-2 hover:bg-slate-800 rounded-md text-slate-400 hover:text-red-400 transition-colors"
+                      className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md text-slate-400 dark:text-slate-400 hover:text-red-600 dark:hover:text-red-400 transition-colors"
                       title="Delete"
                     >
                       <Trash2 size={18} />
@@ -840,8 +913,8 @@ export default function App() {
                   </div>
                 </div>
                 <p className={cn(
-                  "text-slate-200 leading-relaxed text-[15px] whitespace-pre-wrap break-words",
-                  transcript.status === 'transcribing' && "text-slate-500 italic"
+                  "text-slate-700 dark:text-slate-200 leading-relaxed text-[15px] whitespace-pre-wrap break-words",
+                  transcript.status === 'transcribing' && "text-slate-400 dark:text-slate-500 italic"
                 )}>
                   {transcript.text}
                 </p>
@@ -857,11 +930,11 @@ export default function App() {
           </div>
 
           {transcripts.length === 0 && !isTranscribing && (
-            <div className="h-full flex flex-col items-center justify-center text-slate-500 space-y-4 py-20">
-              <div className="p-4 rounded-full bg-slate-900 border border-slate-800">
-                <Mic size={48} className="opacity-20" />
+            <div className="h-full flex flex-col items-center justify-center text-slate-400 dark:text-slate-500 space-y-4 py-20">
+              <div className="p-6 rounded-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-inner">
+                <Mic size={48} className="opacity-40 dark:opacity-20" />
               </div>
-              <p>Your transcripts will appear here</p>
+              <p className="font-medium">Your transcripts will appear here</p>
             </div>
           )}
         </div>
@@ -869,9 +942,9 @@ export default function App() {
 
       {/* Footer / Transcribing Status */}
       {isTranscribing && (
-        <div className="px-6 py-2 bg-blue-600 text-white text-xs font-medium flex items-center justify-center gap-2">
-          <RotateCcw size={12} className="animate-spin" />
-          Processing with Whisper AI...
+        <div className="px-6 py-3 bg-blue-600 dark:bg-blue-600 text-white text-xs font-bold uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg">
+          <RotateCcw size={14} className="animate-spin" />
+          Processing with AI...
         </div>
       )}
     </div>
