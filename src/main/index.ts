@@ -447,8 +447,7 @@ async function cleanupTranscription(text: string) {
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: text }
-      ],
-      temperature: 0.3,
+      ]
     })
 
     return response.choices[0].message.content.trim()
