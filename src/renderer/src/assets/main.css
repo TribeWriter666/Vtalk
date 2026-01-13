@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* Enable class-based dark mode for Tailwind v4 */
+@variant dark (&:where(.dark, .dark *));
+
 body {
   @apply bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans;
   margin: 0;

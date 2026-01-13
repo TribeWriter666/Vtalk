@@ -233,8 +233,13 @@ export default function App() {
         actualTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
       }
       
+      console.log('Applying theme:', { themeValue, actualTheme })
+      
       root.classList.remove('light', 'dark')
       root.classList.add(actualTheme)
+      
+      // Force immediate update of document background to prevent flash
+      root.style.colorScheme = actualTheme
       
       // Update Electron titlebar overlay color
       if (window.api && (window.api as any).setTitleBarColor) {
@@ -381,10 +386,10 @@ export default function App() {
 
   if (!window.api && !error) {
     return (
-      <div className="h-screen flex items-center justify-center bg-slate-950 text-slate-400 p-10 text-center">
+      <div className="h-screen flex items-center justify-center bg-white dark:bg-slate-950 text-slate-500 dark:text-slate-400 p-10 text-center">
         <div className="space-y-4">
           <div className="animate-spin inline-block w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full mb-4"></div>
-          <p>Connecting to Electron process...</p>
+          <p className="font-medium">Connecting to background process...</p>
         </div>
       </div>
     )
