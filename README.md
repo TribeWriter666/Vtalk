@@ -1,71 +1,36 @@
-# Vtalk - AI-Powered Voice Dictation
+# Vtalk - Professional AI-Powered Voice Dictation & Cleanup
 
-Vtalk is a lightweight, cross-platform voice dictation application built with Electron, React, and OpenAI Whisper. It's designed to be a local alternative to apps like whisper Flow, allowing you to dictate text anywhere on your system with a simple hotkey.
+Vtalk is a lightweight, high-performance voice dictation application that transforms your spoken words into polished, perfectly formatted text. Built with Electron and React, it leverages the combined power of **OpenAI Whisper** for transcription and the **GPT-5 lineup** (5.2, Mini, and Nano) for intelligent text cleanup and rewriting.
 
-**Built in under 1.5 hours using AI.**
+Vtalk is designed to be the ultimate productivity companion—allowing you to dictate, refine, and translate text anywhere on your system with a single hotkey.
 
-## TLDR;
-To get this running in seconds: Just open this project in Cursor, then open the AI Chat (Ctrl+L) and say: "I just cloned this; please set up my environment, install all dependencies, and help me add my OpenAI key so I can run the app." The AI will handle all the terminal commands, folder setups, and configuration for you—no developer experience required.
+## Core Features
 
-## Features
-
-- **Global Hotkey:** Press and hold `Ctrl + Alt` to record instantly.
-- **Continuous Mode:** Tap `Ctrl + Alt` quickly, or press `Ctrl + Alt + Space` to keep recording even after releasing.
-- **Auto-Paste:** Transcribed text is automatically pasted into your active application using system-level automation.
-- **Whisper AI Integration:** High-accuracy transcription powered by OpenAI's Whisper model.
-- **Transcription History:** Keep track of your past dictations with WPM (Words Per Minute) and duration stats.
-- **Local Database:** History is stored locally using SQLite for privacy and persistence.
-- **Modern UI:** Clean, dark-themed interface built with Tailwind CSS and Framer Motion.
-- **System Tray:** Runs quietly in the background for quick access.
+- **Global Hotkey:** Press and hold `Ctrl + Alt` to record instantly. Your text is pasted the moment you release.
+- **AI Cleanup & Rewriting:** Powered by the latest GPT-5 models. Choose from **Natural**, **Professional**, **Casual**, or **Concise** styles to automatically remove filler words and polish your prose.
+- **Live Translation:** Use custom prompts to dictate in one language and have the text instantly translated and pasted in another (e.g., "Translate my English voice to German text").
+- **Voice Clone Data Gathering:** Option to save high-quality Mono MP3 recordings. Perfect for gathering the ~2.5 hours of audio needed for a high-quality personal voice clone (Eleven Labs compatible).
+- **Intelligent Formatting:** AI automatically structures your dictation with paragraphs, bullet points, and logical flow—not just a block of text.
+- **Real-Time Overlay:** A floating, non-intrusive status bar shows you exactly when you're Recording, Processing, or Refining with AI.
+- **Transcription History:** Keep track of your past dictations with WPM (Words Per Minute), duration, and audio playback.
+- **Privacy First:** Your transcription history and API settings are stored locally on your machine using SQLite.
 
 ## Tech Stack
 
+- **Transcription:** OpenAI Whisper (High-accuracy speech-to-text)
+- **Refinement:** GPT-5.2 (Nuance), GPT-5 Mini (Speed), GPT-5 Nano (Instant)
 - **Frontend:** React, Tailwind CSS, Framer Motion, Lucide React
 - **Backend:** Electron, Node.js
 - **Database:** SQLite (via `better-sqlite3`)
-- **AI:** OpenAI Whisper API
-- **Build Tool:** Vite, electron-vite
 
 ## How to Use
 
 ### Prerequisites
 
 - [Node.js](https://nodejs.org/) installed.
-- An OpenAI API Key.
+- An OpenAI API Key (or a Vtalk subscription).
 
-### Installation
-
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/TribeWriter666/Vtalk.git
-   cd vtalk
-   ```
-
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-
-3. Set up environment variables:
-   Create a `.env` file in the root directory:
-   ```env
-   OPENAI_API_KEY=your_openai_api_key_here
-   ```
-
-### Running the App
-
-- **Development Mode:**
-  ```bash
-  npm run dev
-  ```
-- **Build Production App:**
-  ```bash
-  npm run build:win  # For Windows
-  npm run build:mac  # For macOS
-  npm run build:linux # For Linux
-  ```
-
-## Shortcuts
+### Shortcuts
 
 | Action | Shortcut |
 |--------|----------|
@@ -76,4 +41,11 @@ To get this running in seconds: Just open this project in Cursor, then open the 
 
 ---
 
-*This project was developed for my own daily use as I've grown sick of having so many subscriptions. $30 here, $20 there, all of a sudden you're forking out hundreds each month on software. as a developer trying to find your feet this quickly becomes too much and you soon have to start choosing what tool you'll have to go without this month. So I built this for myself but decided to opensource so others can save some cash too. Hopefully this inspires you to "just build it yourself"!*
+### Purchasing & Licensing
+
+Vtalk was originally born out of a desire to escape the endless cycle of expensive software subscriptions. However, to ensure the ongoing development and support of these advanced features, Vtalk is now available through two flexible options:
+
+1. **One-Time Purchase:** Pay once for the software and bring your own OpenAI API key. You only pay for the AI processing you actually use.
+2. **Subscription:** A low-cost monthly fee that includes high-speed access to our integrated API keys—no setup required, just record and go.
+
+This model allows me to keep the app affordable for everyone while still providing access to the absolute latest and best AI models available.

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRecorder } from './hooks/useRecorder'
-import { Mic, MicOff, Copy, Trash2, RotateCcw, BarChart3, Clock, Type, Check, Play, Pause, Folder, FileDown, Settings, X } from 'lucide-react'
+import { Mic, MicOff, Copy, Trash2, RotateCcw, BarChart3, Clock, Type, Check, Play, Pause, Folder, FileDown, Settings, X, Info } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
@@ -38,6 +38,9 @@ export default function App() {
   const [showSetup, setShowSetup] = useState(false)
   const [apiKey, setApiKey] = useState('')
   const [saveAudio, setSaveAudio] = useState(false)
+  const [cleanupEnabled, setCleanupEnabled] = useState(false)
+  const [cleanupStyle, setCleanupStyle] = useState('natural')
+  const [customPrompt, setCustomPrompt] = useState('')
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const loadMoreRef = useRef<HTMLDivElement | null>(null)
 
@@ -61,6 +64,21 @@ export default function App() {
       const savedSaveAudio = await window.api.getSetting('save_audio')
       if (savedSaveAudio !== null) {
         setSaveAudio(savedSaveAudio === 'true')
+      }
+
+      const savedCleanupEnabled = await window.api.getSetting('cleanup_enabled')
+      if (savedCleanupEnabled !== null) {
+        setCleanupEnabled(savedCleanupEnabled === 'true')
+      }
+
+      const savedCleanupStyle = await window.api.getSetting('cleanup_style')
+      if (savedCleanupStyle !== null) {
+        setCleanupStyle(savedCleanupStyle)
+      }
+
+      const savedCustomPrompt = await window.api.getSetting('cleanup_custom_prompt')
+      if (savedCustomPrompt !== null) {
+        setCustomPrompt(savedCustomPrompt)
       }
     }
 
@@ -296,6 +314,22 @@ export default function App() {
     await window.api.setSetting('save_audio', String(newValue))
   }
 
+  const toggleCleanup = async () => {
+    const newValue = !cleanupEnabled
+    setCleanupEnabled(newValue)
+    await window.api.setSetting('cleanup_enabled', String(newValue))
+  }
+
+  const updateCleanupStyle = async (style: string) => {
+    setCleanupStyle(style)
+    await window.api.setSetting('cleanup_style', style)
+  }
+
+  const updateCustomPrompt = async (prompt: string) => {
+    setCustomPrompt(prompt)
+    await window.api.setSetting('cleanup_custom_prompt', prompt)
+  }
+
   if (!window.api && !error) {
     return (
       <div className="h-screen flex items-center justify-center bg-slate-950 text-slate-400 p-10 text-center">
@@ -378,8 +412,8 @@ export default function App() {
             {isRecording ? <Mic size={24} /> : <MicOff size={24} />}
           </div>
           <div>
-            <h1 className="text-xl font-bold tracking-tight">Vtalk</h1>
-            <p className="text-xs text-slate-400">
+            <h1 className="text-2xl font-bold tracking-tight">Vtalk</h1>
+            <p className="text-sm text-slate-400 font-medium">
               {isRecording ? 'Recording... (Release Ctrl+Alt to stop)' : 'Press Ctrl+Alt to record'}
             </p>
           </div>
@@ -403,76 +437,191 @@ export default function App() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="absolute inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex flex-col p-6"
+            className="absolute inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex flex-col overflow-y-auto"
           >
-            <div className="flex justify-between items-center mb-8">
-              <h2 className="text-xl font-bold flex items-center gap-2">
-                <Settings className="text-blue-400" /> Settings
-              </h2>
-              <button 
-                onClick={() => setShowSettings(false)}
-                className="p-2 hover:bg-slate-800 rounded-full text-slate-400 hover:text-white transition-colors"
-              >
-                <X size={24} />
-              </button>
-            </div>
+            <div className="max-w-2xl mx-auto w-full p-6 pb-20">
+              <div className="flex justify-between items-center mb-8">
+                <h2 className="text-xl font-bold flex items-center gap-2">
+                  <Settings className="text-blue-400" /> Settings
+                </h2>
+                <button 
+                  onClick={() => setShowSettings(false)}
+                  className="p-2 hover:bg-slate-800 rounded-full text-slate-400 hover:text-white transition-colors"
+                >
+                  <X size={24} />
+                </button>
+              </div>
 
-                <div className="space-y-6">
-                  <section className="space-y-3">
-                    <h3 className="text-sm font-medium text-slate-400 uppercase tracking-widest">Storage & AI Training</h3>
-                    <div className="p-4 bg-slate-900 border border-slate-800 rounded-xl space-y-4">
-                      <div className="flex items-center justify-between">
-                        <div className="space-y-0.5">
-                          <div className="text-sm font-medium text-slate-200">Save Audio Recordings</div>
-                          <div className="text-[10px] text-slate-500 leading-relaxed">
-                            Required for voice cloning (Eleven Labs). Uses high-quality Mono MP3.
+                  <div className="space-y-6">
+                  <section className="space-y-4">
+                    <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-[0.15em] ml-1">Storage & AI Training</h3>
+                    <div className="p-5 bg-slate-900 border border-slate-800 rounded-2xl space-y-5 shadow-sm">
+                      <div className="flex items-center justify-between gap-4">
+                        <div className="space-y-1">
+                          <div className="text-base font-semibold text-slate-200">Save Audio Recordings</div>
+                          <div className="text-xs text-slate-500 leading-relaxed max-w-[280px]">
+                            Saves high-quality Mono MP3 files of your recordings. Perfect for Eleven Labs voice cloning.
                           </div>
                         </div>
                         <button 
                           onClick={toggleSaveAudio}
                           className={cn(
-                            "relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none",
+                            "relative inline-flex h-7 w-12 items-center rounded-full transition-colors focus:outline-none shrink-0",
                             saveAudio ? "bg-blue-600" : "bg-slate-700"
                           )}
                         >
                           <span className={cn(
-                            "inline-block h-4 w-4 transform rounded-full bg-white transition-transform",
+                            "inline-block h-5 w-5 transform rounded-full bg-white transition-transform",
                             saveAudio ? "translate-x-6" : "translate-x-1"
                           )} />
                         </button>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-3 pt-2">
+                      {saveAudio && (
+                        <motion.div 
+                          initial={{ opacity: 0, y: -10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className="flex items-start gap-3 p-3 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-200/80"
+                        >
+                          <Info size={16} className="shrink-0 mt-0.5 text-blue-500" />
+                          <div className="space-y-1.5">
+                            <p className="text-[11px] font-medium leading-normal">
+                              This feature allows you to gather the ~2.5 hours of audio material needed to create a high-quality personal voice clone (e.g., via Eleven Labs).
+                            </p>
+                            <p className="text-[10px] text-blue-400/80 italic leading-normal">
+                              Note: Keeping this enabled will consume disk space over time as your recording library grows.
+                            </p>
+                          </div>
+                        </motion.div>
+                      )}
+
+                      <div className="grid grid-cols-2 gap-4 pt-2">
                         <button 
                           onClick={handleExport}
                           disabled={exporting}
                           className={cn(
-                            "flex flex-col items-center justify-center gap-2 p-3 bg-slate-950 border border-slate-800 rounded-lg transition-all group",
+                            "flex flex-col items-center justify-center gap-2.5 p-4 bg-slate-950 border border-slate-800 rounded-xl transition-all group",
                             exporting ? "border-emerald-500/50 bg-emerald-500/5" : "hover:border-slate-700 hover:bg-slate-800"
                           )}
                         >
-                          {exporting ? <Check size={16} className="text-emerald-400" /> : <FileDown size={16} className="text-emerald-500 group-hover:scale-110 transition-transform" />}
-                          <div className="text-[10px] font-medium text-slate-300 text-center">Export CSV<br/><span className="text-[8px] opacity-50 font-normal">For Eleven Labs</span></div>
+                          {exporting ? <Check size={20} className="text-emerald-400" /> : <FileDown size={20} className="text-emerald-500 group-hover:scale-110 transition-transform" />}
+                          <div className="text-xs font-semibold text-slate-300 text-center">Export CSV<br/><span className="text-[10px] opacity-50 font-medium">For Eleven Labs</span></div>
                         </button>
 
                         <button 
                           onClick={openRecordingsFolder}
-                          className="flex flex-col items-center justify-center gap-2 p-3 bg-slate-950 border border-slate-800 rounded-lg hover:border-slate-700 hover:bg-slate-800 transition-all group"
+                          className="flex flex-col items-center justify-center gap-2.5 p-4 bg-slate-950 border border-slate-800 rounded-xl hover:border-slate-700 hover:bg-slate-800 transition-all group"
                         >
-                          <Folder size={16} className="text-blue-400 group-hover:scale-110 transition-transform" />
-                          <div className="text-[10px] font-medium text-slate-300 text-center">Open Folder<br/><span className="text-[8px] opacity-50 font-normal">Manage Files</span></div>
+                          <Folder size={20} className="text-blue-400 group-hover:scale-110 transition-transform" />
+                          <div className="text-xs font-semibold text-slate-300 text-center">Open Folder<br/><span className="text-[10px] opacity-50 font-medium">Manage Files</span></div>
                         </button>
                       </div>
                     </div>
                   </section>
 
-                  <section className="space-y-3">
-                    <h3 className="text-sm font-medium text-slate-400 uppercase tracking-widest">Account</h3>
-                    <div className="p-4 bg-slate-900 border border-slate-800 rounded-xl space-y-3">
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm text-slate-300 font-medium">OpenAI API Key</span>
+                  <section className="space-y-4">
+                    <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-[0.15em] ml-1">Dictation Cleanup</h3>
+                    <div className="p-5 bg-slate-900 border border-slate-800 rounded-2xl space-y-6 shadow-sm">
+                      <div className="flex items-center justify-between gap-4">
+                        <div className="space-y-1">
+                          <div className="text-base font-semibold text-slate-200">Enable AI Cleanup</div>
+                          <div className="text-xs text-slate-500 leading-relaxed max-w-[280px]">
+                            Automatically removes filler words and intelligently rewrites text.
+                          </div>
+                        </div>
+                        <button 
+                          onClick={toggleCleanup}
+                          className={cn(
+                            "relative inline-flex h-7 w-12 items-center rounded-full transition-colors focus:outline-none shrink-0",
+                            cleanupEnabled ? "bg-blue-600" : "bg-slate-700"
+                          )}
+                        >
+                          <span className={cn(
+                            "inline-block h-5 w-5 transform rounded-full bg-white transition-transform",
+                            cleanupEnabled ? "translate-x-6" : "translate-x-1"
+                          )} />
+                        </button>
+                      </div>
+
+                      {cleanupEnabled && (
+                        <motion.div 
+                          initial={{ opacity: 0, y: -10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className="flex items-start gap-3 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-200/80"
+                        >
+                          <Info size={16} className="shrink-0 mt-0.5 text-amber-500" />
+                          <p className="text-[11px] font-medium leading-normal">
+                            Note: Enabling AI cleanup adds a second processing step after transcription, which will slightly increase the total processing time.
+                          </p>
+                        </motion.div>
+                      )}
+
+                      {cleanupEnabled && (
+                        <div className="space-y-5 pt-4 border-t border-slate-800/50">
+                          <div className="space-y-3">
+                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-0.5">
+                              Writing Style
+                            </label>
+                            <div className="grid grid-cols-2 gap-3">
+                              {[
+                                { id: 'natural', label: 'Natural', desc: 'Clean fillers', speed: 'Mini' },
+                                { id: 'professional', label: 'Professional', desc: 'Formal & Polished', speed: '5.2' },
+                                { id: 'casual', label: 'Casual', desc: 'Friendly & Brief', speed: '5.2' },
+                                { id: 'concise', label: 'Concise', desc: 'Short & Direct', speed: 'Nano' },
+                              ].map((style) => (
+                                <button
+                                  key={style.id}
+                                  onClick={() => updateCleanupStyle(style.id)}
+                                  className={cn(
+                                    "p-3.5 rounded-xl border text-left transition-all relative overflow-hidden",
+                                    cleanupStyle === style.id 
+                                      ? "bg-blue-500/10 border-blue-500/50 text-blue-400" 
+                                      : "bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700"
+                                  )}
+                                >
+                                  {style.speed && (
+                                    <div className={cn(
+                                      "absolute top-0 right-0 text-[10px] px-2 py-1 rounded-bl-lg font-bold uppercase tracking-tighter",
+                                      style.speed === '5.2' ? "bg-amber-500/20 text-amber-500" : 
+                                      style.speed === 'Mini' ? "bg-blue-500/20 text-blue-500" : 
+                                      "bg-emerald-500/20 text-emerald-500"
+                                    )}>
+                                      {style.speed}
+                                    </div>
+                                  )}
+                                  <div className="text-sm font-bold mb-0.5">{style.label}</div>
+                                  <div className="text-xs opacity-60 leading-tight font-medium">{style.desc}</div>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+
+                          <div className="space-y-3">
+                            <div className="flex justify-between items-center px-0.5">
+                              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                                Custom Instructions
+                              </label>
+                              <span className="text-[10px] text-slate-600 font-bold uppercase tracking-widest">Optional</span>
+                            </div>
+                            <textarea 
+                              value={customPrompt}
+                              onChange={(e) => updateCustomPrompt(e.target.value)}
+                              placeholder="e.g. 'Rewrite as a tweet' or 'Translate to German'"
+                              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm text-slate-300 focus:outline-none focus:border-blue-500 transition-all min-h-[100px] resize-none leading-relaxed"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </section>
+
+                  <section className="space-y-4">
+                    <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-[0.15em] ml-1">Account</h3>
+                    <div className="p-5 bg-slate-900 border border-slate-800 rounded-2xl space-y-4 shadow-sm">
+                      <div className="flex justify-between items-center px-0.5">
+                        <span className="text-sm text-slate-300 font-bold uppercase tracking-wider">OpenAI API Key</span>
                         <span className={cn(
-                          "text-[10px] px-1.5 py-0.5 rounded uppercase font-bold tracking-tighter",
+                          "text-[10px] px-2 py-0.5 rounded-md uppercase font-black tracking-widest",
                           apiKey ? "bg-emerald-500/20 text-emerald-400" : "bg-red-500/20 text-red-400"
                         )}>
                           {apiKey ? 'Connected' : 'Missing'}
@@ -485,52 +634,53 @@ export default function App() {
                           onChange={(e) => setApiKey(e.target.value)}
                           onBlur={() => saveApiKey(apiKey)}
                           placeholder="sk-..."
-                          className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-300 focus:outline-none focus:border-blue-500 transition-all"
+                          className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm text-slate-300 focus:outline-none focus:border-blue-500 transition-all font-mono"
                         />
                       </div>
-                      <p className="text-[10px] text-slate-500 leading-relaxed">
-                        Your key is stored locally and used only for Whisper transcription.
+                      <p className="text-xs text-slate-500 leading-relaxed px-0.5 font-medium">
+                        Your key is stored locally and used only for Whisper and GPT-5 processing.
                       </p>
                     </div>
                   </section>
                 </div>
 
-            <div className="mt-auto pt-6 text-center">
-              <p className="text-[10px] text-slate-600">Vtalk v1.0.0 • Developed with AI</p>
+              <div className="mt-12 pt-6 text-center border-t border-slate-800/50">
+                <p className="text-[10px] text-slate-600">Vtalk v1.0.0 • Developed with AI</p>
+              </div>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
 
       {/* Sub-header Stats Bar */}
-      <div className="flex items-center justify-around px-6 py-3 bg-slate-900/40 border-b border-slate-800/60 shadow-inner">
+      <div className="flex items-center justify-around px-6 py-4 bg-slate-900/40 border-b border-slate-800/60 shadow-inner">
         <div className="flex flex-col items-center group cursor-default">
-          <div className="text-[10px] uppercase tracking-[0.2em] text-slate-500 flex items-center gap-1.5 mb-1 group-hover:text-blue-400 transition-colors">
-            <BarChart3 size={10} /> Avg. WPM
+          <div className="text-xs uppercase tracking-[0.2em] text-slate-500 flex items-center gap-1.5 mb-1.5 group-hover:text-blue-400 transition-colors">
+            <BarChart3 size={12} /> Avg. WPM
           </div>
-          <div className="text-base font-mono font-bold text-blue-400/90 tabular-nums">
+          <div className="text-xl font-mono font-bold text-blue-400/90 tabular-nums">
             {stats.avgWpm}
           </div>
         </div>
         
-        <div className="w-px h-8 bg-slate-800/60" />
+        <div className="w-px h-10 bg-slate-800/60" />
 
         <div className="flex flex-col items-center group cursor-default">
-          <div className="text-[10px] uppercase tracking-[0.2em] text-slate-500 flex items-center gap-1.5 mb-1 group-hover:text-emerald-400 transition-colors">
-            <Type size={10} /> Total Words
+          <div className="text-xs uppercase tracking-[0.2em] text-slate-500 flex items-center gap-1.5 mb-1.5 group-hover:text-emerald-400 transition-colors">
+            <Type size={12} /> Total Words
           </div>
-          <div className="text-base font-mono font-bold text-emerald-400/90 tabular-nums">
+          <div className="text-xl font-mono font-bold text-emerald-400/90 tabular-nums">
             {stats.totalWords}
           </div>
         </div>
 
-        <div className="w-px h-8 bg-slate-800/60" />
+        <div className="w-px h-10 bg-slate-800/60" />
 
         <div className="flex flex-col items-center group cursor-default">
-          <div className="text-[10px] uppercase tracking-[0.2em] text-slate-500 flex items-center gap-1.5 mb-1 group-hover:text-amber-400 transition-colors">
-            <Clock size={10} /> Total Time
+          <div className="text-xs uppercase tracking-[0.2em] text-slate-500 flex items-center gap-1.5 mb-1.5 group-hover:text-amber-400 transition-colors">
+            <Clock size={12} /> Total Time
           </div>
-          <div className="text-base font-mono font-bold text-amber-400/90 tabular-nums">
+          <div className="text-xl font-mono font-bold text-amber-400/90 tabular-nums">
             {calculateTotalDuration()}
           </div>
         </div>
@@ -570,93 +720,95 @@ export default function App() {
       </AnimatePresence>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-y-auto p-6 space-y-4">
-        <AnimatePresence initial={false}>
-          {transcripts.map((transcript) => (
-            <motion.div
-              key={transcript.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              className={cn(
-                "p-4 rounded-xl border transition-all",
-                transcript.status === 'transcribing' ? "bg-slate-900/30 border-slate-800 border-dashed" :
-                transcript.status === 'error' ? "bg-red-950/20 border-red-900/50" :
-                "bg-slate-900/50 border-slate-800 hover:border-slate-700"
-              )}
-            >
-              <div className="flex justify-between items-start mb-2">
-                <div className="flex items-center gap-3 text-xs text-slate-500">
-                  <span className="flex items-center gap-1">
-                    <Clock size={12} /> {formatDateTime(transcript.created_at)}
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <BarChart3 size={12} /> {Math.round(transcript.wpm)} WPM
-                  </span>
-                  <span className="flex items-center gap-1 text-slate-600">
-                    <Type size={12} /> {transcript.duration.toFixed(1)}s
-                  </span>
-                </div>
-                <div className="flex items-center gap-1">
-                  {transcript.audio_path && (
+      <main className="flex-1 overflow-y-auto p-6">
+        <div className="max-w-2xl mx-auto w-full space-y-4">
+          <AnimatePresence initial={false}>
+            {transcripts.map((transcript) => (
+              <motion.div
+                key={transcript.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className={cn(
+                  "p-4 rounded-xl border transition-all",
+                  transcript.status === 'transcribing' ? "bg-slate-900/30 border-slate-800 border-dashed" :
+                  transcript.status === 'error' ? "bg-red-950/20 border-red-900/50" :
+                  "bg-slate-900/50 border-slate-800 hover:border-slate-700"
+                )}
+              >
+                <div className="flex justify-between items-start mb-3">
+                  <div className="flex items-center gap-4 text-sm text-slate-500 font-medium">
+                    <span className="flex items-center gap-1.5">
+                      <Clock size={14} /> {formatDateTime(transcript.created_at)}
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                      <BarChart3 size={14} /> {Math.round(transcript.wpm)} WPM
+                    </span>
+                    <span className="flex items-center gap-1.5 text-slate-600">
+                      <Type size={14} /> {transcript.duration.toFixed(1)}s
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {transcript.audio_path && (
+                      <button 
+                        onClick={() => playAudio(transcript.audio_path!, transcript.id)}
+                        className="p-2 hover:bg-slate-800 rounded-md text-slate-400 hover:text-blue-400 transition-colors"
+                        title={playingId === transcript.id ? "Pause" : "Play Recording"}
+                      >
+                        {playingId === transcript.id ? <Pause size={18} /> : <Play size={18} />}
+                      </button>
+                    )}
+                    {transcript.status === 'error' && (
+                      <button 
+                        onClick={retryTranscription}
+                        className="p-2 hover:bg-slate-800 rounded-md text-slate-400 hover:text-white transition-colors"
+                        title="Retry last transcription"
+                      >
+                        <RotateCcw size={18} />
+                      </button>
+                    )}
                     <button 
-                      onClick={() => playAudio(transcript.audio_path!, transcript.id)}
-                      className="p-1.5 hover:bg-slate-800 rounded-md text-slate-400 hover:text-blue-400 transition-colors"
-                      title={playingId === transcript.id ? "Pause" : "Play Recording"}
+                      onClick={() => copyToClipboard(transcript.text, transcript.id)}
+                      className="p-2 hover:bg-slate-800 rounded-md text-slate-400 hover:text-white transition-colors"
+                      title="Copy to clipboard"
                     >
-                      {playingId === transcript.id ? <Pause size={16} /> : <Play size={16} />}
+                      {copiedId === transcript.id ? <Check size={18} className="text-emerald-400" /> : <Copy size={18} />}
                     </button>
-                  )}
-                  {transcript.status === 'error' && (
                     <button 
-                      onClick={retryTranscription}
-                      className="p-1.5 hover:bg-slate-800 rounded-md text-slate-400 hover:text-white transition-colors"
-                      title="Retry last transcription"
+                      onClick={() => deleteTranscript(transcript.id)}
+                      className="p-2 hover:bg-slate-800 rounded-md text-slate-400 hover:text-red-400 transition-colors"
+                      title="Delete"
                     >
-                      <RotateCcw size={16} />
+                      <Trash2 size={18} />
                     </button>
-                  )}
-                  <button 
-                    onClick={() => copyToClipboard(transcript.text, transcript.id)}
-                    className="p-1.5 hover:bg-slate-800 rounded-md text-slate-400 hover:text-white transition-colors"
-                    title="Copy to clipboard"
-                  >
-                    {copiedId === transcript.id ? <Check size={16} className="text-emerald-400" /> : <Copy size={16} />}
-                  </button>
-                  <button 
-                    onClick={() => deleteTranscript(transcript.id)}
-                    className="p-1.5 hover:bg-slate-800 rounded-md text-slate-400 hover:text-red-400 transition-colors"
-                    title="Delete"
-                  >
-                    <Trash2 size={16} />
-                  </button>
+                  </div>
                 </div>
-              </div>
-              <p className={cn(
-                "text-slate-200 leading-relaxed",
-                transcript.status === 'transcribing' && "text-slate-500 italic"
-              )}>
-                {transcript.text}
-              </p>
-            </motion.div>
-          ))}
-        </AnimatePresence>
+                <p className={cn(
+                  "text-slate-200 leading-relaxed text-[15px] whitespace-pre-wrap break-words",
+                  transcript.status === 'transcribing' && "text-slate-500 italic"
+                )}>
+                  {transcript.text}
+                </p>
+              </motion.div>
+            ))}
+          </AnimatePresence>
 
-        {/* Sentinel for infinite scroll */}
-        <div ref={loadMoreRef} className="h-10 flex items-center justify-center">
-          {loadingMore && (
-            <div className="animate-spin w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full" />
+          {/* Sentinel for infinite scroll */}
+          <div ref={loadMoreRef} className="h-10 flex items-center justify-center">
+            {loadingMore && (
+              <div className="animate-spin w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full" />
+            )}
+          </div>
+
+          {transcripts.length === 0 && !isTranscribing && (
+            <div className="h-full flex flex-col items-center justify-center text-slate-500 space-y-4 py-20">
+              <div className="p-4 rounded-full bg-slate-900 border border-slate-800">
+                <Mic size={48} className="opacity-20" />
+              </div>
+              <p>Your transcripts will appear here</p>
+            </div>
           )}
         </div>
-
-        {transcripts.length === 0 && !isTranscribing && (
-          <div className="h-full flex flex-col items-center justify-center text-slate-500 space-y-4 py-20">
-            <div className="p-4 rounded-full bg-slate-900 border border-slate-800">
-              <Mic size={48} className="opacity-20" />
-            </div>
-            <p>Your transcripts will appear here</p>
-          </div>
-        )}
       </main>
 
       {/* Footer / Transcribing Status */}

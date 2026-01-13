@@ -136,8 +136,8 @@ function createWindow(): void {
   const preloadPath = path.join(__dirname, '..', 'preload', 'index.js')
 
   mainWindow = new BrowserWindow({
-    width: 450,
-    height: 700,
+    width: 550,
+    height: 750,
     show: false,
     autoHideMenuBar: true,
     titleBarStyle: 'hiddenInset',
@@ -404,6 +404,52 @@ function stopRecording() {
   }
 }
 
+async function cleanupTranscription(text: string) {
+  const isEnabled = getSetting('cleanup_enabled') === 'true'
+  if (!isEnabled) return text
+
+  const style = getSetting('cleanup_style') || 'natural'
+  const customPrompt = getSetting('cleanup_custom_prompt') || ''
+
+  let systemPrompt = "You are an expert editor. Clean up the following transcript by removing filler words (um, uh, like, you know), fixing grammar, and making it more readable. Use appropriate paragraph breaks and formatting to ensure the text is clear and well-structured, while preserving the original meaning and tone."
+  
+  if (style === 'professional') {
+    systemPrompt = "You are a professional assistant. Rewrite the following transcript into a polished, professional, and formal tone. Remove all filler words, fix grammar, and ensure it sounds business-ready. Organize the output with clear paragraphs and logical structure."
+  } else if (style === 'casual') {
+    systemPrompt = "You are a friendly assistant. Clean up the following transcript to be natural and conversational. Remove filler words but keep the tone warm and approachable. Use casual paragraph breaks to keep it readable."
+  } else if (style === 'concise') {
+    systemPrompt = "You are a concise editor. Rewrite the following transcript to be extremely brief and direct. Remove all unnecessary words and fillers, leaving only the core message. Use bullet points if there are multiple key points."
+  }
+
+  if (customPrompt) {
+    systemPrompt += `\n\nAdditional instructions: ${customPrompt}`
+  }
+
+  // Choose model based on style using the latest GPT-5 lineup
+  let model = 'gpt-5-mini' // Default for Natural
+  if (style === 'professional' || style === 'casual') {
+    model = 'gpt-5.2' // Best for nuanced rewriting
+  } else if (style === 'concise') {
+    model = 'gpt-5-nano' // Fastest for simple direct tasks
+  }
+
+  try {
+    const response = await openai.chat.completions.create({
+      model: model,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: text }
+      ],
+      temperature: 0.3,
+    })
+
+    return response.choices[0].message.content.trim()
+  } catch (error) {
+    console.error('Cleanup failed:', error)
+    return text
+  }
+}
+
 ipcMain.handle('transcribe-audio', async (_, buffer: Buffer) => {
   try {
     const tempFile = path.join(app.getPath('temp'), `vtalk_${Date.now()}.webm`)
@@ -429,6 +475,8 @@ ipcMain.handle('transcribe-audio', async (_, buffer: Buffer) => {
 
     const shouldSaveAudio = getSetting('save_audio') === 'true'
     let audioPath: string | null = null
+
+    let whisperText = ''
 
     if (shouldSaveAudio) {
       const recordingsDir = path.join(app.getPath('userData'), 'recordings')
@@ -457,14 +505,24 @@ ipcMain.handle('transcribe-audio', async (_, buffer: Buffer) => {
         conversionPromise
       ])
       
+      whisperText = response.text
       audioPath = pAudioPath
-      if (fs.existsSync(tempFile)) fs.unlinkSync(tempFile)
-      return { text: response.text, audioPath }
     } else {
       const response = await transcriptionPromise
-      if (fs.existsSync(tempFile)) fs.unlinkSync(tempFile)
-      return { text: response.text, audioPath: null }
+      whisperText = response.text
     }
+
+    if (fs.existsSync(tempFile)) fs.unlinkSync(tempFile)
+
+    // Apply cleanup if enabled
+    const isCleanupEnabled = getSetting('cleanup_enabled') === 'true'
+    if (isCleanupEnabled && overlayWindow && !overlayWindow.isDestroyed()) {
+      overlayWindow.webContents.send('recording-status', 'refining')
+    }
+    
+    const finalLines = await cleanupTranscription(whisperText)
+
+    return { text: finalLines, audioPath }
   } catch (error: any) {
     console.error('Transcription error details:', error)
     if (Notification.isSupported()) {

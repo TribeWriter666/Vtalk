@@ -124,6 +124,11 @@
             dot.className = 'dot processing';
             statusText.innerText = 'Processing AI...';
             wavesContainer.style.display = 'flex';
+          } else if (status === 'refining') {
+            pill.className = 'pill processing';
+            dot.className = 'dot processing';
+            statusText.innerText = 'Refining Text...';
+            wavesContainer.style.display = 'flex';
           } else if (status === 'done') {
             pill.className = 'pill done';
             dot.className = 'dot done';
