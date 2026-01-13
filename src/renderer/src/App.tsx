@@ -403,7 +403,7 @@ export default function App() {
         </div>
       )}
       {/* Header */}
-      <header className="flex items-center justify-between px-6 py-4 bg-slate-900/80 border-b border-slate-800 backdrop-blur-sm z-10 select-none" style={{ WebkitAppRegion: 'drag' } as any}>
+      <header className="flex items-center justify-between px-6 py-4 bg-slate-900/80 border-b border-slate-800 backdrop-blur-sm z-10 select-none pr-[140px]" style={{ WebkitAppRegion: 'drag' } as any}>
         <div className="flex items-center gap-4">
           <div className={cn(
             "p-2.5 rounded-xl transition-all shadow-lg",
@@ -705,7 +705,7 @@ export default function App() {
       {!isRecording && (
         <div className="px-6 py-2 bg-slate-950 border-b border-slate-800/40 text-center">
           <p className="text-[10px] text-slate-500 font-bold uppercase tracking-[0.2em]">
-            Hold <span className="text-blue-500/80">Ctrl + Alt</span> to record • Tap for <span className="text-emerald-500/80">Toggle</span>
+            Hold <span className="text-blue-500/80">Ctrl + Alt</span> to Record • Quick Tap to <span className="text-emerald-500/80">Toggle ON/OFF</span>
           </p>
         </div>
       )}
