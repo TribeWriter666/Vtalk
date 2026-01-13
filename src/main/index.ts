@@ -320,20 +320,24 @@ keyboardListener.addListener((e) => {
   }
 
   const isCtrl = currentHotkey.includes('LEFT CTRL') || currentHotkey.includes('RIGHT CTRL')
+  const isAlt = currentHotkey.includes('LEFT ALT') || currentHotkey.includes('RIGHT ALT')
   const isMeta = currentHotkey.includes('LEFT META') || currentHotkey.includes('RIGHT META') || currentHotkey.includes('INS')
   const isSpace = currentHotkey.includes('SPACE')
+
+  // Support Ctrl + Alt OR Ctrl + Win (Meta)
+  const isModifierPressed = isCtrl && (isAlt || isMeta)
 
   if (e.state === 'DOWN') {
     // If we are already recording...
     if (isRecording) {
       if (isContinuous) {
-        // Stop continuous if Ctrl + Start is pressed (and we just pressed one of them)
-        if (isCtrl && isMeta && !isSpace) {
+        // Stop continuous if modifiers are pressed (and we just pressed one of them)
+        if (isModifierPressed && !isSpace) {
           stopRecording()
         }
       } else {
         // Upgrade to continuous if Space is pressed while holding modifiers
-        if (isSpace && isCtrl && isMeta) {
+        if (isSpace && isModifierPressed) {
           isContinuous = true
           console.log('Recording mode: Continuous (Toggled by Space)')
         }
@@ -341,8 +345,8 @@ keyboardListener.addListener((e) => {
       return
     }
 
-    // If we are NOT recording, start it when Ctrl + Start are pressed
-    if (isCtrl && isMeta) {
+    // If we are NOT recording, start it when modifiers are pressed
+    if (isModifierPressed) {
       isContinuous = isSpace
       startRecording()
       console.log(`Recording mode: ${isContinuous ? 'Continuous' : 'Hold'}`)
@@ -350,7 +354,7 @@ keyboardListener.addListener((e) => {
   } else if (e.state === 'UP') {
     // If we are in "Hold" mode, stop when modifiers are released
     if (isRecording && !isContinuous) {
-      if (!isCtrl || !isMeta) {
+      if (!isModifierPressed) {
         stopRecording()
       }
     }

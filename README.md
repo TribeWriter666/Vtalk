@@ -9,7 +9,7 @@ To get this running in seconds: Just open this project in Cursor, then open the 
 
 ## Features
 
-- **Global Hotkey:** Press and hold `Ctrl + Win` (or `Ctrl + Ins`) to record instantly.
+- **Global Hotkey:** Press and hold `Ctrl + Alt` (recommended) or `Ctrl + Win` to record instantly.
 - **Continuous Mode:** Press `Space` while holding the modifiers to keep recording even after releasing.
 - **Auto-Paste:** Transcribed text is automatically pasted into your active application using system-level automation.
 - **Whisper AI Integration:** High-accuracy transcription powered by OpenAI's Whisper model.
@@ -69,10 +69,10 @@ To get this running in seconds: Just open this project in Cursor, then open the 
 
 | Action | Shortcut |
 |--------|----------|
-| **Start Recording (Hold)** | `Ctrl + Win` (Hold) |
-| **Stop Recording (Hold)** | Release `Ctrl + Win` |
-| **Continuous Mode** | `Ctrl + Win + Space` |
-| **Stop Continuous** | `Ctrl + Win` |
+| **Start Recording (Hold)** | `Ctrl + Alt` or `Ctrl + Win` (Hold) |
+| **Stop Recording (Hold)** | Release hotkey |
+| **Continuous Mode** | `Hotkey + Space` |
+| **Stop Continuous** | `Hotkey` |
 
 ---
 
