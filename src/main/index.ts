@@ -147,12 +147,7 @@ function createWindow(): void {
     height: 750,
     show: false,
     autoHideMenuBar: true,
-    titleBarStyle: 'hidden', // Changed from 'hiddenInset' to 'hidden' for more control
-    titleBarOverlay: {
-      color: '#020617',
-      symbolColor: '#94a3b8',
-      height: 40
-    },
+    frame: false, // Fully custom frame
     backgroundColor: '#020617',
     icon: fs.existsSync(iconPath) ? nativeImage.createFromPath(iconPath) : undefined,
     webPreferences: {
@@ -627,6 +622,28 @@ ipcMain.handle('export-metadata', async () => {
 ipcMain.on('hide-overlay', () => {
   if (overlayWindow && !overlayWindow.isDestroyed()) {
     overlayWindow.hide()
+  }
+})
+
+ipcMain.on('window-minimize', () => {
+  mainWindow?.minimize()
+})
+
+ipcMain.on('window-maximize', () => {
+  if (mainWindow?.isMaximized()) {
+    mainWindow?.unmaximize()
+  } else {
+    mainWindow?.maximize()
+  }
+})
+
+ipcMain.on('window-close', () => {
+  if (process.platform === 'darwin') {
+    mainWindow?.hide()
+  } else {
+    // On Windows/Linux, we can choose to hide or quit. 
+    // Given the tray icon exists, hiding is usually better for a dictation app.
+    mainWindow?.hide()
   }
 })
 

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRecorder } from './hooks/useRecorder'
-import { Mic, MicOff, Copy, Trash2, RotateCcw, BarChart3, Clock, Type, Check, Play, Pause, Folder, FileDown, Settings, X, Info, MessageSquare } from 'lucide-react'
+import { Mic, MicOff, Copy, Trash2, RotateCcw, BarChart3, Clock, Type, Check, Play, Pause, Folder, FileDown, Settings, X, Info, MessageSquare, Minus, Square } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
@@ -41,6 +41,7 @@ export default function App() {
   const [cleanupEnabled, setCleanupEnabled] = useState(false)
   const [cleanupStyle, setCleanupStyle] = useState('natural')
   const [customPrompt, setCustomPrompt] = useState('')
+  const [isMaximized, setIsMaximized] = useState(false)
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const loadMoreRef = useRef<HTMLDivElement | null>(null)
 
@@ -279,6 +280,13 @@ export default function App() {
     window.api.openRecordingsFolder()
   }
 
+  const handleMinimize = () => window.api.minimizeWindow()
+  const handleMaximize = () => {
+    window.api.maximizeWindow()
+    setIsMaximized(!isMaximized)
+  }
+  const handleClose = () => window.api.closeWindow()
+
   const calculateTotalDuration = () => {
     const totalSeconds = stats.totalDuration
     if (totalSeconds < 60) return `${totalSeconds.toFixed(0)}s`
@@ -403,7 +411,7 @@ export default function App() {
         </div>
       )}
       {/* Header */}
-      <header className="flex items-center justify-between px-6 py-4 bg-slate-900/80 border-b border-slate-800 backdrop-blur-sm z-10 select-none pr-[140px]" style={{ WebkitAppRegion: 'drag' } as any}>
+      <header className="flex items-center justify-between px-6 py-4 bg-slate-900/80 border-b border-slate-800 backdrop-blur-sm z-10 select-none" style={{ WebkitAppRegion: 'drag' } as any}>
         <div className="flex items-center gap-4">
           <div className={cn(
             "p-2.5 rounded-xl transition-all shadow-lg",
@@ -413,27 +421,51 @@ export default function App() {
           </div>
           <div>
             <h1 className="text-2xl font-black tracking-tight bg-gradient-to-br from-white to-slate-400 bg-clip-text text-transparent">Vtalk</h1>
-            <p className="text-[11px] text-slate-500 font-bold uppercase tracking-wider">
+            <p className="text-[11px] text-slate-500 font-bold uppercase tracking-wider text-nowrap">
               {isRecording ? 'Live Recording' : 'Voice Dictation'}
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-3" style={{ WebkitAppRegion: 'no-drag' } as any}>
+        <div className="flex items-center gap-1 ml-4" style={{ WebkitAppRegion: 'no-drag' } as any}>
           <a 
             href="https://smallsites.com/contact" 
             target="_blank"
-            className="p-2.5 hover:bg-slate-800 rounded-xl text-slate-500 hover:text-blue-400 transition-all group"
-            title="Send Feedback / Contact Support"
+            className="p-2 hover:bg-slate-800 rounded-lg text-slate-500 hover:text-blue-400 transition-all group"
+            title="Send Feedback"
           >
-            <MessageSquare size={22} className="group-hover:scale-110 transition-transform" />
+            <MessageSquare size={18} className="group-hover:scale-110 transition-transform" />
           </a>
           <button 
             onClick={() => setShowSettings(true)}
-            className="p-2.5 hover:bg-slate-800 rounded-xl text-slate-500 hover:text-white transition-all group"
+            className="p-2 hover:bg-slate-800 rounded-lg text-slate-500 hover:text-white transition-all group"
             title="Settings"
           >
-            <Settings size={22} className="group-hover:rotate-45 transition-transform" />
+            <Settings size={18} className="group-hover:rotate-45 transition-transform" />
+          </button>
+          
+          <div className="w-px h-4 bg-slate-800 mx-1" />
+
+          <button 
+            onClick={handleMinimize}
+            className="p-2 hover:bg-slate-800 rounded-lg text-slate-500 hover:text-white transition-all"
+            title="Minimize"
+          >
+            <Minus size={18} />
+          </button>
+          <button 
+            onClick={handleMaximize}
+            className="p-2 hover:bg-slate-800 rounded-lg text-slate-500 hover:text-white transition-all"
+            title={isMaximized ? "Restore" : "Maximize"}
+          >
+            <Square size={14} className={isMaximized ? "scale-90" : ""} />
+          </button>
+          <button 
+            onClick={handleClose}
+            className="p-2 hover:bg-red-500/20 rounded-lg text-slate-500 hover:text-red-500 transition-all"
+            title="Close to Tray"
+          >
+            <X size={18} />
           </button>
         </div>
       </header>

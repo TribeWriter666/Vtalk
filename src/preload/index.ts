@@ -25,7 +25,10 @@ const api = {
   exportMetadata: () => ipcRenderer.invoke('export-metadata'),
   getSetting: (key) => ipcRenderer.invoke('get-setting', key),
   setSetting: (key, value) => ipcRenderer.invoke('set-setting', key, value),
-  hideOverlay: () => ipcRenderer.send('hide-overlay')
+  hideOverlay: () => ipcRenderer.send('hide-overlay'),
+  minimizeWindow: () => ipcRenderer.send('window-minimize'),
+  maximizeWindow: () => ipcRenderer.send('window-maximize'),
+  closeWindow: () => ipcRenderer.send('window-close')
 }
 
 // Directly expose without the toolkit helper to be 100% sure
