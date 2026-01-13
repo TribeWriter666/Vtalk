@@ -134,14 +134,27 @@ function createOverlayWindow(): void {
 
 function createWindow(): void {
   const preloadPath = path.join(__dirname, '..', 'preload', 'index.js')
+  
+  let iconPath
+  if (is.dev) {
+    iconPath = path.join(__dirname, '../../icon.png')
+  } else {
+    iconPath = path.join(process.resourcesPath, 'icon.png')
+  }
 
   mainWindow = new BrowserWindow({
     width: 550,
     height: 750,
     show: false,
     autoHideMenuBar: true,
-    titleBarStyle: 'hiddenInset',
+    titleBarStyle: 'hidden', // Changed from 'hiddenInset' to 'hidden' for more control
+    titleBarOverlay: {
+      color: '#020617',
+      symbolColor: '#94a3b8',
+      height: 40
+    },
     backgroundColor: '#020617',
+    icon: fs.existsSync(iconPath) ? nativeImage.createFromPath(iconPath) : undefined,
     webPreferences: {
       preload: preloadPath,
       sandbox: false,

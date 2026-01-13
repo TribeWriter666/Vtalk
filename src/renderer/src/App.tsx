@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRecorder } from './hooks/useRecorder'
-import { Mic, MicOff, Copy, Trash2, RotateCcw, BarChart3, Clock, Type, Check, Play, Pause, Folder, FileDown, Settings, X, Info } from 'lucide-react'
+import { Mic, MicOff, Copy, Trash2, RotateCcw, BarChart3, Clock, Type, Check, Play, Pause, Folder, FileDown, Settings, X, Info, MessageSquare } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
@@ -403,29 +403,37 @@ export default function App() {
         </div>
       )}
       {/* Header */}
-      <header className="flex items-center justify-between px-6 py-4 bg-slate-900/80 border-b border-slate-800 backdrop-blur-sm z-10">
-        <div className="flex items-center gap-3">
+      <header className="flex items-center justify-between px-6 py-4 bg-slate-900/80 border-b border-slate-800 backdrop-blur-sm z-10 select-none" style={{ WebkitAppRegion: 'drag' } as any}>
+        <div className="flex items-center gap-4">
           <div className={cn(
-            "p-2 rounded-lg transition-colors",
-            isRecording ? "bg-red-500/20 text-red-500 animate-pulse" : "bg-blue-500/20 text-blue-500"
+            "p-2.5 rounded-xl transition-all shadow-lg",
+            isRecording ? "bg-red-500/20 text-red-500 animate-pulse ring-2 ring-red-500/20" : "bg-blue-500/20 text-blue-500 shadow-blue-500/10"
           )}>
-            {isRecording ? <Mic size={24} /> : <MicOff size={24} />}
+            {isRecording ? <Mic size={28} /> : <MicOff size={28} />}
           </div>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">Vtalk</h1>
-            <p className="text-sm text-slate-400 font-medium">
-              {isRecording ? 'Recording... (Release Ctrl+Alt to stop)' : 'Press Ctrl+Alt to record'}
+            <h1 className="text-2xl font-black tracking-tight bg-gradient-to-br from-white to-slate-400 bg-clip-text text-transparent">Vtalk</h1>
+            <p className="text-[11px] text-slate-500 font-bold uppercase tracking-wider">
+              {isRecording ? 'Live Recording' : 'Voice Dictation'}
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3" style={{ WebkitAppRegion: 'no-drag' } as any}>
+          <a 
+            href="https://smallsites.com/contact" 
+            target="_blank"
+            className="p-2.5 hover:bg-slate-800 rounded-xl text-slate-500 hover:text-blue-400 transition-all group"
+            title="Send Feedback / Contact Support"
+          >
+            <MessageSquare size={22} className="group-hover:scale-110 transition-transform" />
+          </a>
           <button 
             onClick={() => setShowSettings(true)}
-            className="p-2 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition-colors"
+            className="p-2.5 hover:bg-slate-800 rounded-xl text-slate-500 hover:text-white transition-all group"
             title="Settings"
           >
-            <Settings size={20} />
+            <Settings size={22} className="group-hover:rotate-45 transition-transform" />
           </button>
         </div>
       </header>
@@ -645,7 +653,14 @@ export default function App() {
                 </div>
 
               <div className="mt-12 pt-6 text-center border-t border-slate-800/50">
-                <p className="text-[10px] text-slate-600">Vtalk v1.0.0 • Developed with AI</p>
+                <p className="text-[10px] text-slate-600 mb-2">Vtalk v1.0.0 • Built for Productivity</p>
+                <a 
+                  href="https://smallsites.com/contact" 
+                  target="_blank"
+                  className="text-[10px] text-blue-500/60 hover:text-blue-500 font-bold uppercase tracking-widest transition-colors"
+                >
+                  Report a Bug or Suggest a Feature
+                </a>
               </div>
             </div>
           </motion.div>
@@ -685,6 +700,15 @@ export default function App() {
           </div>
         </div>
       </div>
+
+      {/* Quick Tips / Help Bar */}
+      {!isRecording && (
+        <div className="px-6 py-2 bg-slate-950 border-b border-slate-800/40 text-center">
+          <p className="text-[10px] text-slate-500 font-bold uppercase tracking-[0.2em]">
+            Hold <span className="text-blue-500/80">Ctrl + Alt</span> to record • Tap for <span className="text-emerald-500/80">Toggle</span>
+          </p>
+        </div>
+      )}
 
       {/* Recording Overlay/Feedback */}
       <AnimatePresence>
