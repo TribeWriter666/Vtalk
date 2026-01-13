@@ -457,17 +457,17 @@ export default function App() {
         </div>
       )}
       {/* Header */}
-      <header className="flex items-center justify-between px-6 py-4 bg-white/80 dark:bg-slate-900/80 border-b border-slate-200 dark:border-slate-800 backdrop-blur-sm z-10 select-none" style={{ WebkitAppRegion: 'drag' } as any}>
+      <header className="flex items-center justify-between px-6 py-4 bg-white/90 dark:bg-slate-900/80 border-b border-slate-200 dark:border-slate-800 backdrop-blur-md z-10 select-none" style={{ WebkitAppRegion: 'drag' } as any}>
         <div className="flex items-center gap-4">
           <div className={cn(
-            "p-2.5 rounded-xl transition-all shadow-lg",
-            isRecording ? "bg-red-500/20 text-red-500 animate-pulse ring-2 ring-red-500/20" : "bg-blue-500/20 text-blue-500 shadow-blue-500/10"
+            "p-2.5 rounded-2xl transition-all shadow-sm dark:shadow-lg",
+            isRecording ? "bg-red-500/10 dark:bg-red-500/20 text-red-600 dark:text-red-500 animate-pulse ring-2 ring-red-500/20" : "bg-blue-50 dark:bg-blue-500/20 text-blue-600 dark:text-blue-500 shadow-blue-500/5 dark:shadow-blue-500/10 border border-blue-100 dark:border-transparent"
           )}>
-            {isRecording ? <Mic size={28} /> : <MicOff size={28} />}
+            {isRecording ? <Mic size={28} strokeWidth={2.5} /> : <MicOff size={28} strokeWidth={2.5} />}
           </div>
           <div>
-            <h1 className="text-2xl font-black tracking-tight bg-gradient-to-br from-slate-900 to-slate-500 dark:from-white dark:to-slate-400 bg-clip-text text-transparent">Vtalk</h1>
-            <p className="text-[11px] text-slate-500 dark:text-slate-500 font-bold uppercase tracking-wider text-nowrap">
+            <h1 className="text-2xl font-black tracking-tight bg-gradient-to-br from-slate-950 via-slate-800 to-slate-600 dark:from-white dark:via-slate-200 dark:to-slate-400 bg-clip-text text-transparent">Vtalk</h1>
+            <p className="text-[10px] text-blue-600/70 dark:text-slate-500 font-black uppercase tracking-[0.2em] text-nowrap">
               {isRecording ? 'Live Recording' : 'Voice Dictation'}
             </p>
           </div>
@@ -778,34 +778,34 @@ export default function App() {
       </AnimatePresence>
 
       {/* Sub-header Stats Bar */}
-      <div className="flex items-center justify-around px-6 py-4 bg-white/40 dark:bg-slate-900/40 border-b border-slate-200 dark:border-slate-800/60 shadow-inner">
+      <div className="flex items-center justify-around px-6 py-4 bg-white dark:bg-slate-900/40 border-b border-slate-200 dark:border-slate-800/60 shadow-[inset_0_1px_3px_rgba(0,0,0,0.02)] dark:shadow-inner transition-colors duration-300">
         <div className="flex flex-col items-center group cursor-default">
-          <div className="text-xs uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500 flex items-center gap-1.5 mb-1.5 group-hover:text-blue-500 dark:group-hover:text-blue-400 transition-colors">
-            <BarChart3 size={12} /> Avg. WPM
+          <div className="text-[10px] uppercase tracking-[0.25em] text-slate-400 dark:text-slate-500 flex items-center gap-2 mb-2 group-hover:text-blue-500 dark:group-hover:text-blue-400 transition-colors">
+            <BarChart3 size={12} className="opacity-70" /> Avg. WPM
           </div>
-          <div className="text-xl font-mono font-bold text-blue-600/90 dark:text-blue-400/90 tabular-nums">
+          <div className="text-xl font-mono font-black text-blue-600 dark:text-blue-400/90 tabular-nums">
             {stats.avgWpm}
           </div>
         </div>
         
-        <div className="w-px h-10 bg-slate-200 dark:bg-slate-800/60" />
+        <div className="w-px h-10 bg-slate-100 dark:bg-slate-800/60" />
 
         <div className="flex flex-col items-center group cursor-default">
-          <div className="text-xs uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500 flex items-center gap-1.5 mb-1.5 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
-            <Type size={12} /> Total Words
+          <div className="text-[10px] uppercase tracking-[0.25em] text-slate-400 dark:text-slate-500 flex items-center gap-2 mb-2 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+            <Type size={12} className="opacity-70" /> Total Words
           </div>
-          <div className="text-xl font-mono font-bold text-emerald-600/90 dark:text-emerald-400/90 tabular-nums">
+          <div className="text-xl font-mono font-black text-emerald-600 dark:text-emerald-400/90 tabular-nums">
             {stats.totalWords}
           </div>
         </div>
 
-        <div className="w-px h-10 bg-slate-200 dark:bg-slate-800/60" />
+        <div className="w-px h-10 bg-slate-100 dark:bg-slate-800/60" />
 
         <div className="flex flex-col items-center group cursor-default">
-          <div className="text-xs uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500 flex items-center gap-1.5 mb-1.5 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">
-            <Clock size={12} /> Total Time
+          <div className="text-[10px] uppercase tracking-[0.25em] text-slate-400 dark:text-slate-500 flex items-center gap-2 mb-2 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">
+            <Clock size={12} className="opacity-70" /> Total Time
           </div>
-          <div className="text-xl font-mono font-bold text-amber-600/90 dark:text-amber-400/90 tabular-nums">
+          <div className="text-xl font-mono font-black text-amber-600 dark:text-amber-400/90 tabular-nums">
             {calculateTotalDuration()}
           </div>
         </div>
@@ -813,8 +813,8 @@ export default function App() {
 
       {/* Quick Tips / Help Bar */}
       {!isRecording && (
-        <div className="px-6 py-2 bg-slate-100 dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800/40 text-center">
-          <p className="text-[10px] text-slate-500 font-bold uppercase tracking-[0.2em]">
+        <div className="px-6 py-2 bg-slate-50 dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800/40 text-center transition-colors duration-300">
+          <p className="text-[10px] text-slate-400 dark:text-slate-500 font-black uppercase tracking-[0.25em]">
             Hold <span className="text-blue-600 dark:text-blue-500/80">Ctrl + Alt</span> to Record • Quick Tap to <span className="text-emerald-600 dark:text-emerald-500/80">Toggle ON/OFF</span>
           </p>
         </div>
