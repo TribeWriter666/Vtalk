@@ -9,8 +9,8 @@ To get this running in seconds: Just open this project in Cursor, then open the 
 
 ## Features
 
-- **Global Hotkey:** Press and hold `Ctrl + Alt` (recommended) or `Ctrl + Win` to record instantly.
-- **Continuous Mode:** Press `Space` while holding the modifiers to keep recording even after releasing.
+- **Global Hotkey:** Press and hold `Ctrl + Alt` to record instantly.
+- **Continuous Mode:** Tap `Ctrl + Alt` quickly, or press `Ctrl + Alt + Space` to keep recording even after releasing.
 - **Auto-Paste:** Transcribed text is automatically pasted into your active application using system-level automation.
 - **Whisper AI Integration:** High-accuracy transcription powered by OpenAI's Whisper model.
 - **Transcription History:** Keep track of your past dictations with WPM (Words Per Minute) and duration stats.
@@ -37,7 +37,7 @@ To get this running in seconds: Just open this project in Cursor, then open the 
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/[your-username]/vtalk.git
+   git clone https://github.com/TribeWriter666/Vtalk.git
    cd vtalk
    ```
 
@@ -69,10 +69,10 @@ To get this running in seconds: Just open this project in Cursor, then open the 
 
 | Action | Shortcut |
 |--------|----------|
-| **Start Recording (Hold)** | `Ctrl + Alt` or `Ctrl + Win` (Hold) |
-| **Stop Recording (Hold)** | Release hotkey |
-| **Continuous Mode** | `Hotkey + Space` |
-| **Stop Continuous** | `Hotkey` |
+| **Start Recording (Hold)** | `Ctrl + Alt` (Hold) |
+| **Stop Recording (Hold)** | Release `Ctrl + Alt` |
+| **Continuous Mode (Toggle)** | `Ctrl + Alt` (Quick Tap) OR `Ctrl + Alt + Space` |
+| **Stop Continuous** | `Ctrl + Alt` |
 
 ---
 

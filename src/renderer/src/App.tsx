@@ -380,7 +380,7 @@ export default function App() {
           <div>
             <h1 className="text-xl font-bold tracking-tight">Vtalk</h1>
             <p className="text-xs text-slate-400">
-              {isRecording ? 'Recording... (Release hotkey to stop)' : 'Press Ctrl+Alt or Ctrl+Start to record'}
+              {isRecording ? 'Recording... (Release Ctrl+Alt to stop)' : 'Press Ctrl+Alt to record'}
             </p>
           </div>
         </div>
