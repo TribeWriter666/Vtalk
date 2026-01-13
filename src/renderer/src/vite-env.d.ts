@@ -19,5 +19,8 @@ interface Window {
     getSetting: (key: string) => Promise<string | null>
     setSetting: (key: string, value: string) => Promise<void>
     hideOverlay: () => void
+    minimizeWindow: () => void
+    maximizeWindow: () => void
+    closeWindow: () => void
   }
 }
